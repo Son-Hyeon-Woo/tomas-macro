@@ -1,9 +1,14 @@
 # main.py
 import eel
 import os
+from dotenv import load_dotenv
 
 # Eel 초기화 및 웹 파일 디렉토리 설정
 # Svelte 빌드 파일은 'web' 디렉토리에 있다고 가정
+# eel.init("web")
+
+# .env 파일 로드
+load_dotenv()
 
 
 # Python에서 JavaScript로 호출할 함수
@@ -20,22 +25,30 @@ def get_system_info():
 
 # 앱 시작
 def start_app():
+    # .env 파일 로드
+    dev_mode = os.getenv("DEV_MODE", "False").lower() == "true"
+
     try:
-        # 개발 모드에서는 chrome-app 모드로 실행
-        # eel.start("index.html", mode="chrome-app", size=(800, 600))
-        # 개발 모드: Svelte 개발 서버 사용 (기본 포트 5173)
-        eel.init("src/frontend")
-        eel.start(
-            {"port": 5173},
-            host="localhost",
-            mode="chrome-app",
-            size=(800, 600),
-        )
-        # eel.start("http://localhost:5173", mode="chrome", block=True)
+        # 환경변수 가져오기
+        dev_mode = os.getenv("DEV_MODE", "False").lower() == "true"
+        port = int(os.getenv("PORT", 8000))
+
+        if dev_mode:
+            print("Development mode")
+            # 개발 모드
+            eel.init("dist")
+            eel.start("index.html", mode="default")
+
+        else:
+            print("Production mode")
+            # 프로덕션 모드
+            eel.init("dist")
+            eel.start("index.html")
+
     except EnvironmentError:
+        print("Chrome browser not found. Starting in default browser mode.")
         # 크롬을 찾을 수 없는 경우 기본 브라우저로 실행
-        eel.init("dist")
-        eel.start("index.html", mode="default", size=(800, 600))
+        eel.start("index.html", mode="default")
 
 
 if __name__ == "__main__":
