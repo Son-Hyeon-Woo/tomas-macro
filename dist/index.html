@@ -15,6 +15,7 @@
 <script src="eel.js"></script>
 <script>
 async function callPython() {
+  console.log('window.eel', window.eel);
   const result = await window.eel.get_system_info()();
   console.log(result);
 }

@@ -1,9 +1,30 @@
 <script lang="ts">
 	import Counter from './Counter.svelte';
-	import welcome from '$lib/images/svelte-welcome.webp';
-	import welcomeFallback from '$lib/images/svelte-welcome.png';
-
+	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+
+	let count = 0;
+
+	function test() {
+		count++;
+		console.log('test');
+	}
+
+	let systemInfo: any = null;
+	// eel 함수 호출
+	async function getSystemInfo() {
+		console.log('getSystemInfo'); // @ts-ignore (eel 타입 무시)
+		// @ts-ignore (eel 타입 무시)
+		console.log(window.eel);
+		try {
+			// @ts-ignore (eel 타입 무시)
+			const info = await window.eel.get_system_info()();
+			systemInfo = info;
+			console.log('System Info:', info);
+		} catch (error) {
+			console.error('Error:', error);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -12,7 +33,11 @@
 </svelte:head>
 
 <section>
-	<Button>Click me</Button>
+	<Button on:click={test}>Click me</Button>
+	<p>click count: {count}</p>
+
+	<Button on:click={getSystemInfo}>Get System Info</Button>
+	<p>System Info: {JSON.stringify(systemInfo)}</p>
 
 	<Counter />
 </section>
@@ -24,25 +49,5 @@
 		justify-content: center;
 		align-items: center;
 		flex: 0.6;
-	}
-
-	h1 {
-		width: 100%;
-	}
-
-	.welcome {
-		display: block;
-		position: relative;
-		width: 100%;
-		height: 0;
-		padding: 0 0 calc(100% * 495 / 2048) 0;
-	}
-
-	.welcome img {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		top: 0;
-		display: block;
 	}
 </style>

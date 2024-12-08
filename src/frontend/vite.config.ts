@@ -7,7 +7,12 @@ export default defineConfig(({ mode }) => {
 	  '/eel.js': {
 		target: 'http://localhost:8000',
 		changeOrigin: true,
-	  }
+	  },
+	'/eel': {  // WebSocket 프록시 추가
+		target: 'ws://localhost:8000',
+		ws: true,  // WebSocket 지원 활성화
+		changeOrigin: true,
+		}
 	} : undefined;
   
 	return {
