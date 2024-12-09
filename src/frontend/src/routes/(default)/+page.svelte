@@ -10,11 +10,4 @@
 <div class="bg-muted/50 min-h-[20vh] flex-1 rounded-xl"></div>
 
 <style>
-	section {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		flex: 1;
-	}
 </style>

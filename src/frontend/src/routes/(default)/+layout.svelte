@@ -1,18 +1,60 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import AppSidebar from '@/routes/(default)/components/app-sidebar.svelte';
-
+	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 
 	import '@/app.css';
 
 	let { children } = $props();
+
+	const data = {
+		navMain: [
+			{
+				title: '기차예매',
+
+				items: [
+					{
+						title: 'KTX',
+						url: '#'
+					},
+					{
+						title: 'SRT',
+						url: '#'
+					}
+				]
+			},
+			{
+				title: '예매 확인',
+				url: '#'
+			},
+			{
+				title: '계정 설정',
+				url: '#'
+			},
+			{
+				title: '기차역 설정',
+				url: '#'
+			},
+			{
+				title: '알림 설정',
+				url: '#'
+			},
+			{
+				title: '예매 옵션 설정',
+				url: '#'
+			},
+			{
+				title: '카드 설정',
+				url: '#'
+			}
+		]
+	};
 </script>
 
 <div class="app">
 	<Sidebar.Provider style="--sidebar-width: 13rem;">
-		<AppSidebar />
+		<AppSidebar title="Tomas Macro" subtitle="by hyeonwoo" navData={data} />
 		<Sidebar.Inset>
 			<!-- 👉 Top Nav bar -->
 			<header class="flex h-16 shrink-0 items-center gap-2 px-4">
