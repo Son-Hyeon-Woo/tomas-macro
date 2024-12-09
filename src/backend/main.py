@@ -1,7 +1,7 @@
-# main.py
 import eel
 import os
 from dotenv import load_dotenv
+
 
 # Eel 초기화 및 웹 파일 디렉토리 설정
 # Svelte 빌드 파일은 'web' 디렉토리에 있다고 가정

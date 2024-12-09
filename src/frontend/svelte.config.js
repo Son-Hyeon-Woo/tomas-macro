@@ -1,5 +1,6 @@
 import adapter from '@sveltejs/adapter-auto';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { fileURLToPath, URL } from 'node:url';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -14,7 +15,7 @@ const config = {
 		adapter: adapter(),
 		//NOTE - shadcn-svelte 사용시 alias 설정
 		alias: {
-			'@/*': './path/to/lib/*'
+			'@': fileURLToPath(new URL('./src', import.meta.url))
 		}
 	}
 };

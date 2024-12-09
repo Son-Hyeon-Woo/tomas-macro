@@ -1,6 +1,4 @@
 <script lang="ts">
-	import Counter from './Counter.svelte';
-	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	let count = 0;
@@ -38,8 +36,6 @@
 
 	<Button on:click={getSystemInfo}>Get System Info</Button>
 	<p>System Info: {JSON.stringify(systemInfo)}</p>
-
-	<Counter />
 </section>
 
 <style>

@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
 		changeOrigin: true,
 		}
 	} : undefined;
+
   
 	return {
 	  plugins: [sveltekit()],
