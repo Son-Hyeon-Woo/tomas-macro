@@ -5,11 +5,6 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 </script>
 
-<svelte:head>
-	<title>Run! Tomas! login</title>
-	<meta name="description" content="Svelte demo app" />
-</svelte:head>
-
 <section>
 	<Card.Root class="mx-auto max-w-sm">
 		<Card.Header>
@@ -30,10 +25,6 @@
 					<Input id="password" type="password" required />
 				</div>
 				<Button type="submit" class="w-full">Login</Button>
-			</div>
-			<div class="mt-4 text-center text-sm">
-				Don't have an account?
-				<a href="##" class="underline"> Sign up </a>
 			</div>
 		</Card.Content>
 	</Card.Root>
