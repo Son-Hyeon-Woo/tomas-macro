@@ -1,6 +1,3 @@
-<style>
-</style>
-
 <script lang="ts">
 	import * as Card from '@ui/card/index.js'
 	import { Label } from '@ui/label/index.js'

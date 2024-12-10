@@ -2,14 +2,26 @@
 </style>
 
 <script lang="ts">
+	import '@/app.css'
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js'
 	import AppSidebar from '@/routes/(default)/components/app-sidebar.svelte'
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js'
 	import { Separator } from '$lib/components/ui/separator/index.js'
 
-	import '@/app.css'
-
 	let { children } = $props()
+
+	// 네비게이션 데이터 타입 정의
+	interface NavPathMap {
+		'ktx-reservation': string[]
+		'srt-reservation': string[]
+		'my-reservation': string[]
+		'account-setting': string[]
+		'station-setting': string[]
+		'alarm-setting': string[]
+		'reservation-option-setting': string[]
+		'card-setting': string[]
+		[key: string]: string[] // 인덱스 시그니처 추가
+	}
 
 	//👉 - 네비게이션 데이터
 	const data = {
@@ -61,24 +73,19 @@
 			'alarm-setting': ['알림 설정'],
 			'reservation-option-setting': ['예매 옵션 설정'],
 			'card-setting': ['카드 설정']
-		}
+		} as NavPathMap
 	}
 
 	//👉 - 현재 Url 정보
 	import { page } from '$app/stores'
-	import { derived } from 'svelte/store'
 	// const currentPath = $derived($page.url)
 	// const currentPath = $derived(page, ($page) => $page.url.pathname)
 
 	// console.log('currentPath', currentPath)
 	$effect(() => console.log($page))
-	let currentPath = $derived.by(() => {
-		return $page.url.pathname.split('/').pop()
-	})
-	// const currentPath = derived(page, ($page) => {
-	// 	console.log('currentPath', $page.url.pathname)
-	// 	$page.url.pathname
-	// })
+
+	const currentPath = $derived($page.url.pathname.split('/').pop() || 'ktx-reservation')
+	// const currentPathName = $derived(data.navPathMap[currentPath])
 </script>
 
 <div class="app">
@@ -88,17 +95,23 @@
 			<!-- 👉 Top Nav bar -->
 			<header class="flex h-16 shrink-0 items-center gap-2 px-4">
 				<Sidebar.Trigger class="-ml-1" />
-				<Separator orientation="vertical" class="mr-2 h-4" />
+				<Separator orientation="vertical" class="m-4 mr-2" />
 				<!-- 👉 - Displays the path  -->
 				<Breadcrumb.Root>
 					<Breadcrumb.List>
 						<Breadcrumb.Item class="hidden md:block">
-							<Breadcrumb.Link href="#">{currentPath}</Breadcrumb.Link>
+							<Breadcrumb.Page class="text-base font-semibold">
+								{data.navPathMap[currentPath][0]}
+							</Breadcrumb.Page>
 						</Breadcrumb.Item>
-						<Breadcrumb.Separator class="hidden md:block" />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page>Data Fetching</Breadcrumb.Page>
-						</Breadcrumb.Item>
+						{#if data.navPathMap[currentPath].length > 1}
+							<Breadcrumb.Separator class="hidden md:block" />
+							<Breadcrumb.Item>
+								<Breadcrumb.Page class="text-base font-semibold">
+									{data.navPathMap[currentPath][1]}
+								</Breadcrumb.Page>
+							</Breadcrumb.Item>
+						{/if}
 					</Breadcrumb.List>
 				</Breadcrumb.Root>
 			</header>
