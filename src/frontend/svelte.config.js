@@ -15,7 +15,8 @@ const config = {
 		adapter: adapter(),
 		//NOTE - shadcn-svelte 사용시 alias 설정
 		alias: {
-			'@': fileURLToPath(new URL('./src', import.meta.url))
+			'@': fileURLToPath(new URL('./src', import.meta.url)),
+			'@ui': fileURLToPath(new URL('./src/lib/components/ui', import.meta.url))
 		}
 	}
 };
