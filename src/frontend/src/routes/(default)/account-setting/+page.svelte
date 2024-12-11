@@ -3,10 +3,13 @@
 	import { Label } from '@ui/label/index.js'
 	import { Button } from '@ui/button/index.js'
 	import { Input } from '@ui/input/index.js'
+	import * as Alert from '@ui/alert/index.js'
+
 	import { cn } from '$lib/utils.js'
 
-	import { Eye } from 'lucide-svelte'
-	import { EyeOff } from 'lucide-svelte'
+	import { Eye, EyeOff, Info } from 'lucide-svelte'
+
+	import { onMount } from 'svelte'
 
 	type LoginType = 'telno' | 'email' | 'membership'
 	type TrainType = 'ktx' | 'srt'
@@ -57,6 +60,25 @@
 			isKtxPasswordVisible = !isKtxPasswordVisible
 		} else {
 			isSrtPasswordVisible = !isSrtPasswordVisible
+		}
+	}
+
+	//👉 - 마운트되면 이전 계정정보 가져오기
+	let loginInfo: any = null
+	onMount(() => {
+		getLoginInfo('srt')
+		getLoginInfo('ktx')
+	})
+
+	async function getLoginInfo(train: TrainType) {
+		try {
+			let trainUpper: string = train.toUpperCase()
+			// @ts-ignore (eel 타입 무시)
+			const response = await window.eel.get_login(trainUpper)()
+			loginInfo = response
+			console.log(trainUpper, 'Login Info:', response)
+		} catch (error) {
+			console.error('Error:', error)
 		}
 	}
 </script>
@@ -137,10 +159,20 @@
 			</form>
 		</Card.Content>
 		<Card.Footer class="flex flex-row-reverse">
-			<Button class="px-6">로그인</Button>
+			<Button class="px-4">계정확인</Button>
 		</Card.Footer>
 	</Card.Root>
 {/snippet}
+
+<Alert.Root class="border bg-neutral-100 py-2">
+	<Alert.Title class="flex align-middle">
+		<Info class="mr-2" />
+		<span class="self-center">알림</span>
+	</Alert.Title>
+	<Alert.Description class="self-center">
+		아래의 계정으로 예매시 자동로그인 됩니다.
+	</Alert.Description>
+</Alert.Root>
 
 <div class="flex space-x-4">
 	<div class="flex-1">
