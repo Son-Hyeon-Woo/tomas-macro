@@ -78,14 +78,8 @@
 
 	//👉 - 현재 Url 정보
 	import { page } from '$app/stores'
-	// const currentPath = $derived($page.url)
-	// const currentPath = $derived(page, ($page) => $page.url.pathname)
-
-	// console.log('currentPath', currentPath)
-	$effect(() => console.log($page))
 
 	const currentPath = $derived($page.url.pathname.split('/').pop() || 'ktx-reservation')
-	// const currentPathName = $derived(data.navPathMap[currentPath])
 </script>
 
 <div class="app">

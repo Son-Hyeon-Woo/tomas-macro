@@ -3,43 +3,151 @@
 	import { Label } from '@ui/label/index.js'
 	import { Button } from '@ui/button/index.js'
 	import { Input } from '@ui/input/index.js'
-	import * as Select from '@ui/select/index.js'
 	import { cn } from '$lib/utils.js'
 
+	import { Eye } from 'lucide-svelte'
+	import { EyeOff } from 'lucide-svelte'
+
+	type LoginType = 'telno' | 'email' | 'membership'
+	type TrainType = 'ktx' | 'srt'
+
 	interface LoginCardProps {
+		train: TrainType
 		title: string
 		titleColor?: string
-		action?: () => void
+		action?: () => void | undefined
+	}
+
+	//👉 - 로그인 유형 관련
+	let ktxLoginType: LoginType = $state('telno')
+	let srtLoginType: string = $state('telno')
+
+	let ktxPlaceholderText: string = $derived.by(() => {
+		if (ktxLoginType === 'telno') {
+			return '전화번호를 입력하세요 (숫자만 입력)'
+		} else if (ktxLoginType === 'email') {
+			return '이메일을 입력하세요'
+		} else {
+			return '멤버십 번호를 입력하세요 (숫자만 입력)'
+		}
+	})
+	let srtPlaceholderText: string = $derived.by(() => {
+		if (srtLoginType === 'telno') {
+			return '전화번호를 입력하세요 (숫자만 입력)'
+		} else if (srtLoginType === 'email') {
+			return '이메일을 입력하세요'
+		} else {
+			return '멤버십 번호를 입력하세요 (숫자만 입력)'
+		}
+	})
+
+	function loginTypeClick(type: LoginType, train: TrainType) {
+		if (train === 'ktx') {
+			ktxLoginType = type
+		} else {
+			srtLoginType = type
+		}
+	}
+
+	//👉 - 비밀번호 숨김 / 보이기
+	let isKtxPasswordVisible: boolean = $state(false)
+	let isSrtPasswordVisible: boolean = $state(false)
+	function togglePasswordVisibility(train: TrainType) {
+		if (train === 'ktx') {
+			isKtxPasswordVisible = !isKtxPasswordVisible
+		} else {
+			isSrtPasswordVisible = !isSrtPasswordVisible
+		}
 	}
 </script>
 
 {#snippet loginCard(loginCardProps: LoginCardProps)}
-	<Card.Root class="w-full  border shadow-none">
+	<!-- 👉 로그인 유형 선택하는 버튼 -->
+	{#snippet loginTypeBtn(type: LoginType, train: TrainType)}
+		<Button
+			value={type}
+			onclick={() => loginTypeClick(type, train)}
+			variant="outline"
+			class={train === 'ktx'
+				? cn('flex-1', 'text-sm', { ' !bg-neutral-200': ktxLoginType === type })
+				: cn('flex-1', 'text-sm', { ' !bg-neutral-200': srtLoginType === type })}
+			>{type === 'membership' ? '멤버십 번호' : type === 'email' ? '이메일' : '전화번호'}
+		</Button>
+	{/snippet}
+
+	<Card.Root class="w-full border bg-neutral-50 shadow-none">
 		<Card.Header>
-			<Card.Title class={cn('text-lg font-extrabold', loginCardProps.titleColor)}
+			<Card.Title class={cn('text-xl font-extrabold', loginCardProps.titleColor)}
 				>{loginCardProps.title}
 			</Card.Title>
+			<div class="!mt-4 flex space-x-3 px-1">
+				{@render loginTypeBtn('telno', loginCardProps.train)}
+				{@render loginTypeBtn('email', loginCardProps.train)}
+				{@render loginTypeBtn('membership', loginCardProps.train)}
+			</div>
 		</Card.Header>
-		<Card.Content class="w-8/12">
+		<Card.Content class="">
 			<form>
 				<div class="grid w-full items-center gap-4">
 					<div class="flex flex-col space-y-1.5">
-						<Label for="name">Name</Label>
-						<Input id="name" placeholder="Name of your project" />
+						<Label for="id">아이디</Label>
+						<Input
+							id={loginCardProps.train + 'id'}
+							placeholder={loginCardProps.train === 'ktx' ? ktxPlaceholderText : srtPlaceholderText}
+						/>
 					</div>
+
 					<div class="flex flex-col space-y-1.5">
-						<Label for="name">Name</Label>
-						<Input id="name" placeholder="Name of your project" />
+						<Label for="password">비밀번호</Label>
+						<div class="flex space-x-2">
+							<Input
+								id={loginCardProps.train + 'password'}
+								type={loginCardProps.train === 'ktx'
+									? isKtxPasswordVisible
+										? ''
+										: 'password'
+									: isSrtPasswordVisible
+										? ''
+										: 'password'}
+							></Input>
+							<!-- 👉 - 보이기/숨김 버튼 활성화 -->
+							<Button
+								size="icon"
+								variant="ghost"
+								onclick={() =>
+									loginCardProps.train === 'ktx'
+										? togglePasswordVisibility('ktx')
+										: togglePasswordVisibility('srt')}
+							>
+								{#if loginCardProps.train === 'ktx'}
+									{#if isKtxPasswordVisible}
+										<EyeOff />
+									{:else}
+										<Eye />
+									{/if}
+								{:else if isSrtPasswordVisible}
+									<EyeOff />
+								{:else}
+									<Eye />
+								{/if}
+							</Button>
+						</div>
 					</div>
 				</div>
 			</form>
 		</Card.Content>
-		<Card.Footer class="flex w-8/12 justify-between">
-			<Button variant="outline">Cancel</Button>
-			<Button>Deploy</Button>
+		<Card.Footer class="flex flex-row-reverse">
+			<Button class="px-6">로그인</Button>
 		</Card.Footer>
 	</Card.Root>
 {/snippet}
 
-{@render loginCard({ title: 'KTX 계정', titleColor: 'text-blue-700' })}
-{@render loginCard({ title: 'SRT 계정', titleColor: 'text-purple-800' })}
+<div class="flex space-x-4">
+	<div class="flex-1">
+		{@render loginCard({ train: 'ktx', title: 'KTX 계정', titleColor: 'text-blue-800' })}
+	</div>
+	<!-- <Separator class="" orientation="vertical" /> -->
+	<div class="flex-1">
+		{@render loginCard({ train: 'srt', title: 'SRT 계정', titleColor: 'text-purple-900' })}
+	</div>
+</div>
