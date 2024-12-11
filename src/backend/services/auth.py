@@ -1,9 +1,21 @@
 import inquirer  # ℹ️ - cmd에서 대화식으로 질문을 던지고 답변을 받는 라이블러리
 import keyring
 
-from SRT2 import SRT2
+
+from services.SRT2 import SRT2
 from korail2 import Korail
 from SRT.errors import SRTResponseError
+
+
+def get_login(rail_type="SRT"):
+    print(rail_type)
+    credentials = {
+        "id": keyring.get_password(rail_type, "id") or "",
+        "pass": keyring.get_password(rail_type, "pass") or "",
+        "last_login_at": keyring.get_password(rail_type, "last_login_at") or "",
+    }
+
+    return credentials
 
 
 def set_login(rail_type="SRT"):

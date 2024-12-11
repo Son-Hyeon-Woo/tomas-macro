@@ -14,7 +14,7 @@ from datetime import datetime
 from SRT.response_data import SRTResponseData
 from SRT.errors import SRTResponseError, SRTNotLoggedInError
 from SRT.reservation import SRTReservation
-from SRTTicket2 import SRTTicket2
+from services.SRTTicket2 import SRTTicket2
 
 
 class SRT2(SRT):
