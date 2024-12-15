@@ -10,6 +10,14 @@
 	import { Eye, EyeOff, Info } from 'lucide-svelte'
 
 	import { onMount } from 'svelte'
+	import { get } from 'svelte/store'
+
+	import { createAuthStore } from '$lib/stores/auth'
+	import { authService } from '$lib/services/authService'
+	const authStore = createAuthStore()
+
+	//NOTE - 먼저 계정 정보를 가져와서 authInfo 저장한다.
+	let authInfo = $state(get(authStore))
 
 	type LoginType = 'telno' | 'email' | 'membership'
 	type TrainType = 'ktx' | 'srt'
@@ -44,6 +52,7 @@
 		}
 	})
 
+	//👉 - 로그인 타입 클릭
 	function loginTypeClick(type: LoginType, train: TrainType) {
 		if (train === 'ktx') {
 			ktxLoginType = type
@@ -63,11 +72,24 @@
 		}
 	}
 
+	//👉 - 로그인 확인 클릭 이벤트
+	function loginCheckClick(train: TrainType) {
+		if (train === 'ktx') {
+			authStore.updateKtx(authInfo)
+		} else {
+			authStore.updateSrt(authInfo)
+		}
+		authService.login(train)
+	}
+
 	//👉 - 마운트되면 이전 계정정보 가져오기
 	let loginInfo: any = null
 	onMount(() => {
 		getLoginInfo('srt')
 		getLoginInfo('ktx')
+		authStore.subscribe((value) => {
+			console.log(value)
+		})
 	})
 
 	async function getLoginInfo(train: TrainType) {
@@ -111,27 +133,40 @@
 		<Card.Content class="">
 			<form>
 				<div class="grid w-full items-center gap-4">
+					<!-- 👉 - ID input -->
 					<div class="flex flex-col space-y-1.5">
 						<Label for="id">아이디</Label>
-						<Input
-							id={loginCardProps.train + 'id'}
-							placeholder={loginCardProps.train === 'ktx' ? ktxPlaceholderText : srtPlaceholderText}
-						/>
+						{#if loginCardProps.train === 'ktx'}
+							<Input
+								id={loginCardProps.train + 'id'}
+								placeholder={ktxPlaceholderText}
+								bind:value={authInfo.ktxId}
+							/>
+						{:else}
+							<Input
+								id={loginCardProps.train + 'id'}
+								placeholder={srtPlaceholderText}
+								bind:value={authInfo.srtId}
+							/>
+						{/if}
 					</div>
-
+					<!-- 👉 - Password input -->
 					<div class="flex flex-col space-y-1.5">
 						<Label for="password">비밀번호</Label>
 						<div class="flex space-x-2">
-							<Input
-								id={loginCardProps.train + 'password'}
-								type={loginCardProps.train === 'ktx'
-									? isKtxPasswordVisible
-										? ''
-										: 'password'
-									: isSrtPasswordVisible
-										? ''
-										: 'password'}
-							></Input>
+							{#if loginCardProps.train === 'ktx'}
+								<Input
+									id={loginCardProps.train + 'password'}
+									type={isKtxPasswordVisible ? '' : 'password'}
+									bind:value={authInfo.ktxPw}
+								/>
+							{:else}
+								<Input
+									id={loginCardProps.train + 'password'}
+									type={isSrtPasswordVisible ? '' : 'password'}
+									bind:value={authInfo.srtPw}
+								/>
+							{/if}
 							<!-- 👉 - 보이기/숨김 버튼 활성화 -->
 							<Button
 								size="icon"
@@ -159,7 +194,7 @@
 			</form>
 		</Card.Content>
 		<Card.Footer class="flex flex-row-reverse">
-			<Button class="px-4">계정확인</Button>
+			<Button onclick={() => loginCheckClick(loginCardProps.train)} class="px-4">계정확인</Button>
 		</Card.Footer>
 	</Card.Root>
 {/snippet}
@@ -170,7 +205,7 @@
 		<span class="self-center">알림</span>
 	</Alert.Title>
 	<Alert.Description class="self-center">
-		아래의 계정으로 예매시 자동로그인 됩니다.
+		예매시 아래의 계정으로 자동로그인 됩니다.
 	</Alert.Description>
 </Alert.Root>
 
