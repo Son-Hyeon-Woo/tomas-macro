@@ -1,7 +1,7 @@
 import eel
 import os
 from dotenv import load_dotenv
-from services.auth import get_login, set_login
+from services.auth import get_login, set_login, check_login
 
 # Eel 초기화 및 웹 파일 디렉토리 설정
 # Svelte 빌드 파일은 'web' 디렉토리에 있다고 가정
@@ -13,6 +13,7 @@ load_dotenv()
 # 👉 - 이전 로그인 정보 가져오는 함수
 eel.expose(get_login)
 eel.expose(set_login)
+eel.expose(check_login)
 
 
 # Python에서 JavaScript로 호출할 함수

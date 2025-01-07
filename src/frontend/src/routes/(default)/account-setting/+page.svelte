@@ -4,20 +4,14 @@
 	import { Button } from '@ui/button/index.js'
 	import { Input } from '@ui/input/index.js'
 	import * as Alert from '@ui/alert/index.js'
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js'
 
 	import { cn } from '$lib/utils.js'
 
 	import { Eye, EyeOff, Info } from 'lucide-svelte'
 
 	import { onMount } from 'svelte'
-	import { get } from 'svelte/store'
-
-	import { createAuthStore } from '$lib/stores/auth'
 	import { authService } from '$lib/services/authService'
-	const authStore = createAuthStore()
-
-	//NOTE - 먼저 계정 정보를 가져와서 authInfo 저장한다.
-	let authInfo = $state(get(authStore))
 
 	type LoginType = 'telno' | 'email' | 'membership'
 	type TrainType = 'ktx' | 'srt'
@@ -28,6 +22,11 @@
 		titleColor?: string
 		action?: () => void | undefined
 	}
+
+	//👉 - alert 관련 변수
+	let isAlertDialogOpen: boolean = $state(false)
+	let alertTitle: string = ''
+	let alertDescription: string = ''
 
 	//👉 - 로그인 유형 관련
 	let ktxLoginType: LoginType = $state('telno')
@@ -73,32 +72,45 @@
 	}
 
 	//👉 - 로그인 확인 클릭 이벤트
-	function loginCheckClick(train: TrainType) {
+	async function loginCheckClick(train: TrainType) {
+		let response: any
 		if (train === 'ktx') {
-			authStore.updateKtx(authInfo)
+			response = await authService.loginCheck(train, ktxInfo.id, ktxInfo.pass)
 		} else {
-			authStore.updateSrt(authInfo)
+			response = await authService.loginCheck(train, srtInfo.id, srtInfo.pass)
 		}
-		authService.login(train)
+
+		if (response.status === 'success') {
+			console.log('로그인 성공:', response)
+			isAlertDialogOpen = true
+			alertTitle = '로그인 성공'
+			alertDescription = '로그인 성공하였습니다.'
+			srtInfo = await getLoginInfo('srt')
+			ktxInfo = await getLoginInfo('ktx')
+		} else {
+			console.error('로그인 실패:', response)
+			isAlertDialogOpen = true
+			alertTitle = '로그인 실패'
+			alertDescription = '로그인 실패하였습니다.'
+		}
 	}
 
 	//👉 - 마운트되면 이전 계정정보 가져오기
-	let loginInfo: any = null
-	onMount(() => {
-		getLoginInfo('srt')
-		getLoginInfo('ktx')
-		authStore.subscribe((value) => {
-			console.log(value)
-		})
+	let ktxInfo: any = $state({ id: '', pass: '', last_login_at: '', last_login_type: '' })
+	let srtInfo: any = $state({ id: '', pass: '', last_login_at: '', last_login_type: '' })
+	onMount(async () => {
+		srtInfo = await getLoginInfo('srt')
+		ktxInfo = await getLoginInfo('ktx')
 	})
 
+	//👉 - 로컬에 저장된 로그인 정보 가져오기
 	async function getLoginInfo(train: TrainType) {
 		try {
 			let trainUpper: string = train.toUpperCase()
 			// @ts-ignore (eel 타입 무시)
 			const response = await window.eel.get_login(trainUpper)()
-			loginInfo = response
 			console.log(trainUpper, 'Login Info:', response)
+			return response
 		} catch (error) {
 			console.error('Error:', error)
 		}
@@ -123,6 +135,14 @@
 		<Card.Header>
 			<Card.Title class={cn('text-xl font-extrabold', loginCardProps.titleColor)}
 				>{loginCardProps.title}
+				<span class="ms-1 text-xs font-medium text-black">
+					마지막 계정확인 :
+					{#if loginCardProps.train === 'ktx'}
+						{ktxInfo.last_login_at}
+					{:else}
+						{srtInfo.last_login_at}
+					{/if}
+				</span>
 			</Card.Title>
 			<div class="!mt-4 flex space-x-3 px-1">
 				{@render loginTypeBtn('telno', loginCardProps.train)}
@@ -140,13 +160,13 @@
 							<Input
 								id={loginCardProps.train + 'id'}
 								placeholder={ktxPlaceholderText}
-								bind:value={authInfo.ktxId}
+								bind:value={ktxInfo.id}
 							/>
 						{:else}
 							<Input
 								id={loginCardProps.train + 'id'}
 								placeholder={srtPlaceholderText}
-								bind:value={authInfo.srtId}
+								bind:value={srtInfo.id}
 							/>
 						{/if}
 					</div>
@@ -158,13 +178,13 @@
 								<Input
 									id={loginCardProps.train + 'password'}
 									type={isKtxPasswordVisible ? '' : 'password'}
-									bind:value={authInfo.ktxPw}
+									bind:value={ktxInfo.pass}
 								/>
 							{:else}
 								<Input
 									id={loginCardProps.train + 'password'}
 									type={isSrtPasswordVisible ? '' : 'password'}
-									bind:value={authInfo.srtPw}
+									bind:value={srtInfo.pass}
 								/>
 							{/if}
 							<!-- 👉 - 보이기/숨김 버튼 활성화 -->
@@ -218,3 +238,17 @@
 		{@render loginCard({ train: 'srt', title: 'SRT 계정', titleColor: 'text-purple-900' })}
 	</div>
 </div>
+
+<AlertDialog.Root bind:open={isAlertDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>{alertTitle}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{alertDescription}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Action onclick={() => (isAlertDialogOpen = false)}>Continue</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

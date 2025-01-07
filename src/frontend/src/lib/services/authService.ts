@@ -13,8 +13,43 @@ class AuthService {
 	/**
 	 * Generic login method that can be used for different login types
 	 * @param type - Type of login (srt or ktx)
-	 * @param credentials - Login credentials
-	 * @param options - Additional login options
+	 * @param id - ID
+	 * @param pass - Password
+	 * @returns Promise with login result
+	 */
+	async loginCheck(type: 'srt' | 'ktx', id: string, pass: string): Promise<LoginResponse> {
+		try {
+			// Validate input
+			if (id === '' || pass === '') {
+				console.log('ID and password are required')
+				return {
+					success: false,
+					message: 'ID and password are required'
+				}
+			}
+
+			let response
+			if (type === 'srt') {
+				// @ts-expect-error (eel 타입 무시)
+				response = await window.eel.check_login(type.toUpperCase(), id, pass)()
+			} else {
+				// @ts-expect-error (eel 타입 무시)
+				response = await window.eel.check_login(type.toUpperCase(), id, pass)()
+			}
+
+			return response
+		} catch (error) {
+			console.error(`${type.toUpperCase()} Login error:`, error)
+			return {
+				success: false,
+				message: 'An unexpected error occurred during login'
+			}
+		}
+	}
+
+	/**
+	 * Generic login method that can be used for different login types
+	 * @param type - Type of login (srt or ktx)
 	 * @returns Promise with login result
 	 */
 	async login(type: 'srt' | 'ktx'): Promise<LoginResponse> {
