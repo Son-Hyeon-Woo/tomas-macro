@@ -25,8 +25,8 @@
 
 	//👉 - alert 관련 변수
 	let isAlertDialogOpen: boolean = $state(false)
-	let alertTitle: string = ''
-	let alertDescription: string = ''
+	let alertTitle: string = $state('')
+	let alertDescription: string = $state('')
 
 	//👉 - 로그인 유형 관련
 	let ktxLoginType: LoginType = $state('telno')
