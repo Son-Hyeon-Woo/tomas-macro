@@ -4,6 +4,18 @@ import keyring
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
 
 
+from .ktx import (
+    Korail,
+    KorailError,
+    ReserveOption,
+    TrainType,
+    AdultPassenger,
+    ChildPassenger,
+    SeniorPassenger,
+    Disability1To3Passenger,
+    Disability4To6Passenger,
+)
+
 RailType = Union[str, None]
 ChoiceType = Union[int, None]
 
