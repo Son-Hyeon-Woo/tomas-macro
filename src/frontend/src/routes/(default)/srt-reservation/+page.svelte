@@ -4,7 +4,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js'
 	import * as Select from '$lib/components/ui/select/index.js'
-	import { SquareArrowRight } from 'lucide-svelte'
+	import { SquareArrowRight, ArrowRight } from 'lucide-svelte'
 	import CalendarIcon from 'lucide-svelte/icons/calendar'
 	import { DateFormatter, type DateValue, getLocalTimeZone, today } from '@internationalized/date'
 	import { cn } from '$lib/utils.js'
@@ -114,7 +114,7 @@
 		</Select.Root>
 
 		<!-- 👉 - 역선택 사이 화살표 기호 -->
-		<SquareArrowRight size={32} color="#8267b4" class="mr-1 justify-center align-middle" />
+		<ArrowRight size={32} color="#8267b4" class="mr-1 justify-center align-middle" />
 
 		<!-- 👉 - 도착역 선택 Select 박스 -->
 		<Select.Root type="single" name="favoriteFruit" bind:value={arrivalStation}>
