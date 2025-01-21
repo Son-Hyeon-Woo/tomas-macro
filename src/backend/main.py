@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from services.auth import get_login, set_login, check_login
 from services.station import get_station, set_station
+from services.reserve import get_default_reservation
 
 
 # Eel 초기화 및 웹 파일 디렉토리 설정
@@ -18,6 +19,7 @@ eel.expose(set_login)
 eel.expose(check_login)
 eel.expose(get_station)
 eel.expose(set_station)
+eel.expose(get_default_reservation)
 
 
 # Python에서 JavaScript로 호출할 함수

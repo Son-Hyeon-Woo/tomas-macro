@@ -1,7 +1,14 @@
-from services.auth import check_login, login
+from services.auth import login
 from datetime import datetime, timedelta
+from random import gammavariate
+from json.decoder import JSONDecodeError
+
 import keyring
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
+import time
+
+import inquirer
+from termcolor import colored
 
 
 from .ktx import (
@@ -14,6 +21,17 @@ from .ktx import (
     SeniorPassenger,
     Disability1To3Passenger,
     Disability4To6Passenger,
+)
+
+from .srt import (
+    SRT,
+    SRTError,
+    SeatType,
+    Adult,
+    Child,
+    Senior,
+    Disability1To3,
+    Disability4To6,
 )
 
 RailType = Union[str, None]
@@ -91,50 +109,36 @@ STATIONS = {
 }
 DEFAULT_STATIONS = {"SRT": [0, 11, 12, 16], "KTX": [0, 7, 10, 15]}
 
+# 예약 간격 (평균 간격 (초) = SHAPE * SCALE)
+RESERVE_INTERVAL_SHAPE = 5
+RESERVE_INTERVAL_SCALE = 0.25
+
+WAITING_BAR = ["|", "/", "-", "\\"]
+
+
+def get_default_reservation(
+    rail_type: RailType,
+) -> Tuple[str, str, str, str, int, int, int, int, int]:
+    now = datetime.now() + timedelta(minutes=10)
+    today = now.strftime("%Y%m%d")
+    defaluts = {
+        "departure": keyring.get_password(rail_type, "departure")
+        or ("수서" if rail_type == "SRT" else "서울"),
+        "arrival": keyring.get_password(rail_type, "arrival") or "동대구",
+        "date": keyring.get_password(rail_type, "date") or today,
+        "time": keyring.get_password(rail_type, "time") or "120000",
+        "adult": int(keyring.get_password(rail_type, "adult") or 1),
+        "child": int(keyring.get_password(rail_type, "child") or 0),
+        "senior": int(keyring.get_password(rail_type, "senior") or 0),
+        "disability1to3": int(keyring.get_password(rail_type, "disability1to3") or 0),
+        "disability4to6": int(keyring.get_password(rail_type, "disability4to6") or 0),
+    }
+    return defaluts
+
 
 def get_options():
     options = keyring.get_password("SRT", "options") or ""
     return options.split(",") if options else []
-
-
-def set_station(rail_type: RailType) -> bool:
-    stations, default_station_key = get_station(rail_type)
-    station_info = inquirer.prompt(
-        [
-            inquirer.Checkbox(
-                "stations",
-                message="역 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-                choices=[(station, i) for i, station in enumerate(stations)],
-                default=default_station_key,
-            )
-        ]
-    )
-
-    if station_info is None:
-        return False
-
-    selected_stations = station_info.get("stations", [])
-    if not selected_stations:
-        print("선택된 역이 없습니다.")
-        return False
-
-    keyring.set_password(rail_type, "station", ",".join(map(str, selected_stations)))
-
-    selected_station_names = ", ".join([stations[i] for i in selected_stations])
-    print(f"선택된 역: {selected_station_names}")
-
-    return True
-
-
-def get_station(rail_type: RailType) -> Tuple[List[str], List[int]]:
-    stations = STATIONS[rail_type]
-    station_key = keyring.get_password(rail_type, "station")
-
-    if not station_key:
-        return stations, DEFAULT_STATIONS[rail_type]
-
-    valid_keys = [int(x) for x in station_key.split(",") if int(x) < len(stations)]
-    return stations, valid_keys or DEFAULT_STATIONS[rail_type]
 
 
 def reserve(rail_type="SRT", debug=False):
@@ -402,8 +406,9 @@ def reserve(rail_type="SRT", debug=False):
             )
             msg += "\n결제 완료"
 
-        tgprintf = get_telegram()
-        asyncio.run(tgprintf(msg))
+        # 👉 - 텔레그램 기능 비활성화
+        # tgprintf = get_telegram()
+        # asyncio.run(tgprintf(msg))
 
     # Reservation loop
     i_try = 0
@@ -486,3 +491,52 @@ def reserve(rail_type="SRT", debug=False):
                 print("\nUndefined exception")
             if not _handle_error(ex):
                 return
+
+
+def _is_seat_available(train, seat_type, rail_type):
+    if rail_type == "SRT":
+        if not train.seat_available():
+            return train.reserve_standby_available()
+        if seat_type in [SeatType.GENERAL_FIRST, SeatType.SPECIAL_FIRST]:
+            return train.seat_available()
+        if seat_type == SeatType.GENERAL_ONLY:
+            return train.general_seat_available()
+        return train.special_seat_available()
+    else:
+        if not train.has_seat():
+            return train.has_waiting_list()
+        if seat_type in [ReserveOption.GENERAL_FIRST, ReserveOption.SPECIAL_FIRST]:
+            return train.has_seat()
+        if seat_type == ReserveOption.GENERAL_ONLY:
+            return train.has_general_seat()
+        return train.has_special_seat()
+
+
+def pay_card(rail, reservation) -> bool:
+    if keyring.get_password("card", "ok"):
+        birthday = keyring.get_password("card", "birthday")
+        return rail.pay_with_card(
+            reservation,
+            keyring.get_password("card", "number"),
+            keyring.get_password("card", "password"),
+            birthday,
+            keyring.get_password("card", "expire"),
+            0,
+            "J" if len(birthday) == 6 else "S",
+        )
+    return False
+
+
+def _sleep():
+    time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+
+
+def _handle_error(ex, msg=None):
+    msg = (
+        msg
+        or f"\nException: {ex}, Type: {type(ex)}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
+    )
+    print(msg)
+    # tgprintf = get_telegram()
+    # asyncio.run(tgprintf(msg))
+    return inquirer.confirm(message="계속할까요", default=True)

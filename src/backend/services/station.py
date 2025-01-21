@@ -89,22 +89,6 @@ def set_station(rail_type: RailType, selected_stations: List[SetStation]) -> boo
         station["id"] for station in selected_stations if station["selected"]
     ]
 
-    # station_info = inquirer.prompt(
-    #     [
-    #         inquirer.Checkbox(
-    #             "stations",
-    #             message="역 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-    #             choices=[(station, i) for i, station in enumerate(stations)],
-    #             default=default_station_key,
-    #         )
-    #     ]
-    # )
-
-    # if station_info is None:
-    #     return False
-
-    # selected_stations = station_info.get("stations", [])
-
     if not selected_stations:
         print("선택된 역이 없습니다.")
         return False
