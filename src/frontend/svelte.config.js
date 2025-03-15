@@ -1,6 +1,7 @@
-import adapter from '@sveltejs/adapter-auto';
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { fileURLToPath, URL } from 'node:url';
+// import adapter from '@sveltejs/adapter-auto';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
+import { fileURLToPath, URL } from 'node:url'
+import adapter from '@sveltejs/adapter-static'
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -19,6 +20,6 @@ const config = {
 			'@ui': fileURLToPath(new URL('./src/lib/components/ui', import.meta.url))
 		}
 	}
-};
+}
 
-export default config;
+export default config

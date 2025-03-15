@@ -45,6 +45,7 @@
 
 			//ℹ️ - 기차역 값 받아오기
 			const response2 = await getStation()
+			console.log('response2:', response2)
 
 			//ℹ️ - page 내에서 사용가능하도록 객체 수정
 			station = response2[0]
@@ -59,7 +60,7 @@
 
 			//ℹ️ - 선택되어 있는 값은 selected 수정
 			allStations.forEach((station) => {
-				station.selected = response2[1].includes(station.id)
+				station.selected = response2[1].includes(station.name)
 			})
 
 			return response
@@ -69,22 +70,6 @@
 	}
 
 	let allStations = $state<{ id: number; name: string; selected: boolean }[]>([])
-
-	function stationClick(targetId: number) {
-		// //ℹ️ - 선택되어 있는 값은 selected 수정
-		// let stationIndex: number = allStations.findIndex((station) => station.id === targetId)
-
-		// if (stationIndex === -1) {
-		// 	console.error('')
-		// 	return
-		// }
-
-		// console.log($state.snapshot(allStations[stationIndex]))
-		// allStations[stationIndex].selected = !allStations[stationIndex].selected
-		// console.log($state.snapshot(allStations[stationIndex]))
-		console.log($state.snapshot(allStations))
-		return true
-	}
 
 	let station = $state([])
 	onMount(async () => {
@@ -104,7 +89,7 @@
 
 		//ℹ️ - 선택되어 있는 값은 selected 수정
 		allStations.forEach((station) => {
-			station.selected = response[1].includes(station.id)
+			station.selected = response[1].includes(station.name)
 		})
 	})
 </script>

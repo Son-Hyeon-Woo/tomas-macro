@@ -79,23 +79,28 @@ STATIONS = {
         "정동진",
     ],
 }
-DEFAULT_STATIONS = {"SRT": [0, 11, 12, 16], "KTX": [0, 7, 10, 15]}
+DEFAULT_STATIONS = {
+    "SRT": ["수서", "대전", "동대구", "부산"],
+    "KTX": ["서울", "대전", "동대구", "부산"],
+}
 
 
 def set_station(rail_type: RailType, selected_stations: List[SetStation]) -> bool:
     stations, default_station_key = get_station(rail_type)
 
     selected_stations = [
-        station["id"] for station in selected_stations if station["selected"]
+        station["name"] for station in selected_stations if station["selected"]
     ]
 
     if not selected_stations:
         print("선택된 역이 없습니다.")
         return False
 
-    keyring.set_password(rail_type, "station", ",".join(map(str, selected_stations)))
-
-    selected_station_names = ", ".join([stations[i] for i in selected_stations])
+    # keyring.set_password(rail_type, "station", ",".join(map(str, selected_stations)))
+    keyring.set_password(
+        rail_type, "station", (selected_stations := ",".join(selected_stations))
+    )
+    selected_station_names = ", ".join([selected_stations])
     print(f"선택된 역: {selected_station_names}")
 
     return True
@@ -108,5 +113,5 @@ def get_station(rail_type: RailType) -> Tuple[List[str], List[int]]:
     if not station_key:
         return stations, DEFAULT_STATIONS[rail_type]
 
-    valid_keys = [int(x) for x in station_key.split(",") if int(x) < len(stations)]
+    valid_keys = [x for x in station_key.split(",")]
     return stations, valid_keys or DEFAULT_STATIONS[rail_type]

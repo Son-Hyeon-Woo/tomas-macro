@@ -43,12 +43,18 @@ class SRT2(SRT):
             list[:class:`SRTTrain`]: 열차 리스트
         """
 
+        print(f"dep : {dep}")
+        print(f"arr : {arr}")
+        print(f"constants.STATION_CODE : {constants.STATION_CODE}")
+
         if dep not in constants.STATION_CODE or arr not in constants.STATION_CODE:
             raise ValueError(f'Invalid station: "{dep}" or "{arr}"')
 
         dep_code, arr_code = constants.STATION_CODE[dep], constants.STATION_CODE[arr]
         date = date or datetime.now().strftime("%Y%m%d")
         time = time or "000000"
+
+        print("😀 2번까지 정상작동")
 
         passengers = passengers or [Adult()]
         passengers = Passenger.combine(passengers)
@@ -67,9 +73,19 @@ class SRT2(SRT):
             "dptRsStnCd": dep_code,
         }
 
+        print("data : ", data)
+
+        print("😀 3번까지 정상작동")
+        print("😀 3번까지 정상작동11", constants.API_ENDPOINTS["search_schedule"])
+        print("😀 3번까지 정상작동22", data)
+
         r = self._session.post(
             url=constants.API_ENDPOINTS["search_schedule"], data=data
         )
+
+        print("😀 4번까지 정상작동")
+
+        print("r.text : ", r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():

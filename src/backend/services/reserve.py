@@ -34,6 +34,17 @@ from .srt import (
     Disability4To6,
 )
 
+from SRT.passenger import (
+    Passenger,
+    Adult,
+    Child,
+    Senior,
+    Disability1To3,
+    Disability4To6,
+)
+
+from services.station import get_station
+
 RailType = Union[str, None]
 ChoiceType = Union[int, None]
 
@@ -139,6 +150,42 @@ def get_default_reservation(
 def get_options():
     options = keyring.get_password("SRT", "options") or ""
     return options.split(",") if options else []
+
+
+def search_train(rail_type="SRT", data=None):
+    rail = login(rail_type)
+    is_srt = rail_type == "SRT"
+
+    passenger_classes = {
+        "adult": Adult if is_srt else AdultPassenger,
+        "child": Child if is_srt else ChildPassenger,
+        "senior": Senior if is_srt else SeniorPassenger,
+        "disability1to3": Disability1To3 if is_srt else Disability1To3Passenger,
+        "disability4to6": Disability4To6 if is_srt else Disability4To6Passenger,
+    }
+
+    options = get_options()
+
+    # Search for trains
+    params = {
+        "dep": data["departure"],
+        "arr": data["arrival"],
+        "date": data["date"],
+        "time": data["time"],
+        "passengers": [passenger_classes["adult"](int(data["adult"]))],
+        **(
+            {"available_only": False}
+            if is_srt
+            else {
+                "include_no_seats": True,
+                **({"train_type": TrainType.KTX} if "ktx" in options else {}),
+            }
+        ),
+    }
+    print("😀 1번까지 정상작동")
+
+    trains = rail.search_train(**params)
+    return trains
 
 
 def reserve(rail_type="SRT", debug=False):
@@ -273,10 +320,16 @@ def reserve(rail_type="SRT", debug=False):
         keyring.set_password(rail_type, key, str(value))
 
     # Adjust time if needed
+    # NOTE - 유지
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
 
     # Build passenger list
+    # passengers = [
+    #     AdultPassenger(2),  # 성인 2명
+    #     ChildPassenger(1),  # 어린이 1명
+    #     Disability1To3Passenger(1)  # 1~3급 장애인 1명
+    #     ]
     passengers = []
     total_count = 0
     for key, cls in passenger_classes.items():

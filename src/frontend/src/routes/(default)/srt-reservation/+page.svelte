@@ -20,18 +20,22 @@
 	import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date'
 	import { cn } from '$lib/utils.js'
 
+	//👉 - 윈도우 로딩시 실행
 	onMount(async () => {
 		//ℹ️ - 기차역 값 받아오기 & 정렬
 		const response = await getStation()
 		ALLSTATIONS = response[0]
-		selectedStationIds = response[1]
-		selectedStations = selectedStationIds.map((index) => {
-			return {
-				id: index.toString(),
-				name: ALLSTATIONS[index]
-			}
-		})
-		selectedStations.sort((a, b) => a.name.localeCompare(b.name))
+		selectedStations = response[1].sort((a: string, b: string) => a.localeCompare(b))
+
+		console.log('selectedStationIds:', selectedStationIds)
+
+		// selectedStations = selectedStationIds.map((name, index) => {
+		// 	return {
+		// 		id: index.toString(),
+		// 		name: name
+		// 	}
+		// })
+		// selectedStations.sort((a, b) => a.name.localeCompare(b.name))
 	})
 
 	//👉 - alert 여는 함수
@@ -54,9 +58,42 @@
 			return
 		}
 
-		console.log(ALLSTATIONS[Number(startStation)])
-		console.log(ALLSTATIONS[Number(arrivalStation)])
+		if (timeValue === '') {
+			openAlertDialog('시간을 선택해주세요.')
+			return
+		}
+
+		if (personValue === '') {
+			openAlertDialog('인원을 선택해주세요.')
+			return
+		}
+
+		console.log(startStation)
+		console.log(arrivalStation)
 		console.log(pickedDate.toString())
+		console.log(timeValue)
+		console.log(personValue)
+
+		const year = pickedDate.year.toString().slice(-2) // 연도의 마지막 두 자리
+		const month = pickedDate.month.toString().padStart(2, '0') // 월
+		const day = pickedDate.day.toString().padStart(2, '0') // 일
+
+		const data = {
+			departure: startStation,
+			arrival: arrivalStation,
+			date: year + month + day,
+			time: timeValue,
+			adult: personValue
+		}
+
+		try {
+			// @ts-ignore (eel 타입 무시)
+			const response = await window.eel.search_train('SRT', data)()
+			console.log('reserve:', response)
+			return response
+		} catch (error) {
+			console.error('Error:', error)
+		}
 	}
 
 	//👉 - 로컬에 저장된 즐겨찾는 역 가져오기
@@ -83,18 +120,15 @@
 
 	//👉 - 역 선택 기능
 	let ALLSTATIONS: string[] = []
-	let selectedStationIds: number[] = []
-	let selectedStations: { id: string; name: string }[] = $state([])
+	let selectedStationIds: string[] = []
+	let selectedStations: string[] = $state([])
 	let startStation = $state('')
 	let arrivalStation = $state('')
 
 	//ℹ️ - 출발역 선택시 해당 역명으로 변경
-	const startTriggerContent = $derived(
-		selectedStations.find((f) => f.id === startStation)?.name ?? '출발역'
-	)
-	const arrivalTriggerContent = $derived(
-		selectedStations.find((f) => f.id === arrivalStation)?.name ?? '도착역'
-	)
+	const startTriggerContent = $derived(startStation == '' ? '출발역' : startStation)
+
+	const arrivalTriggerContent = $derived(arrivalStation == '' ? '도착역' : arrivalStation)
 
 	//👉 - 시간 선택 기능
 	const timeChoices: [string, string][] = Array.from({ length: 24 }, (_, h) => {
@@ -103,7 +137,7 @@
 	})
 	let timeValue = $state('')
 
-	const tiemTriggerContent = $derived(timeChoices.find((f) => f[0] === timeValue) ?? '시각')
+	const tiemTriggerContent = $derived(timeChoices.find((f) => f[1] === timeValue)?.[0] ?? '시각')
 
 	//👉 - 인원수 선택 기능
 	const personCounts = [
@@ -118,10 +152,10 @@
 		{ value: '9', label: '9명' }
 	]
 
-	let person_value = $state('')
+	let personValue = $state('1')
 
-	const triggerContent2 = $derived(
-		personCounts.find((f) => f.value === person_value)?.label ?? '인원'
+	const personTriggerContent = $derived(
+		personCounts.find((f) => f.value === personValue)?.label ?? '인원'
 	)
 </script>
 
@@ -129,7 +163,7 @@
 	<Card.Header>
 		<Card.Title class="text-xl text-violet-950">승차권 조회</Card.Title>
 	</Card.Header>
-	<Card.Content class="flex flex-wrap items-center justify-center">
+	<Card.Content class="flex flex-wrap items-center justify-center ">
 		<!-- 👉 - 출발역 선택 Select 박스 -->
 		<Select.Root type="single" name="startStation" bind:value={startStation}>
 			<!-- 👉 - selectbox 트리거 ( 값 바꾸면 텍스트 변경 )-->
@@ -140,7 +174,7 @@
 				<Select.Group>
 					<Select.GroupHeading>출발역</Select.GroupHeading>
 					{#each selectedStations as station}
-						<Select.Item value={station.id} label={station.name}>{station.name}</Select.Item>
+						<Select.Item value={station} label={station}>{station}</Select.Item>
 					{/each}
 				</Select.Group>
 			</Select.Content>
@@ -159,7 +193,7 @@
 				<Select.Group>
 					<Select.GroupHeading>도착역</Select.GroupHeading>
 					{#each selectedStations as station}
-						<Select.Item value={station.id} label={station.name}>{station.name}</Select.Item>
+						<Select.Item value={station} label={station}>{station}</Select.Item>
 					{/each}
 				</Select.Group>
 			</Select.Content>
@@ -203,14 +237,14 @@
 		</Select.Root>
 
 		<!-- 👉 - 사람 수 선택하는 Select -->
-		<Select.Root type="single" name="favoriteFruit" bind:value={person_value}>
+		<Select.Root type="single" name="personCount" bind:value={personValue}>
 			<Select.Trigger class="w-[80px]">
-				{triggerContent2}
+				{personTriggerContent}
 			</Select.Trigger>
 			<Select.Content class="min-w-[var(--bits-select-anchor-width)]">
 				<Select.Group class="">
-					{#each personCounts as fruit}
-						<Select.Item value={fruit.value} label={fruit.label}>{fruit.label}</Select.Item>
+					{#each personCounts as person}
+						<Select.Item value={person.value} label={person.label}>{person.label}</Select.Item>
 					{/each}
 				</Select.Group>
 			</Select.Content>
