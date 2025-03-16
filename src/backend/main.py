@@ -1,9 +1,10 @@
 import eel
 import os
 from dotenv import load_dotenv
-from services.auth import get_login, set_login, check_login
-from services.station import get_station, set_station
-from services.reserve import get_default_reservation, search_train
+from module.srtgo import get_login, set_login, check_login
+from module.srtgo import get_station, set_station
+
+from module.srtgo import get_train_list
 import time
 import threading
 
@@ -20,8 +21,7 @@ eel.expose(set_login)
 eel.expose(check_login)
 eel.expose(get_station)
 eel.expose(set_station)
-eel.expose(get_default_reservation)
-eel.expose(search_train)
+eel.expose(get_train_list)
 
 
 # Python에서 JavaScript로 호출할 함수

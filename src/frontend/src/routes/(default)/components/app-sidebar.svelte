@@ -27,7 +27,7 @@
 	}: ComponentProps<typeof Sidebar.Root> & {
 		title: string
 		subtitle: string
-		navData: Items
+		navData: any
 	} = $props()
 </script>
 

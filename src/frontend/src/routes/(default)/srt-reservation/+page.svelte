@@ -1,6 +1,3 @@
-<style>
-</style>
-
 <script lang="ts">
 	import { onMount } from 'svelte'
 
@@ -11,6 +8,8 @@
 	import { Calendar } from '$lib/components/ui/calendar/index.js'
 	import { buttonVariants } from '$lib/components/ui/button/index.js'
 	import { Button } from '$lib/components/ui/button/index.js'
+	import * as Table from '$lib/components/ui/table'
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js'
 
 	import { ArrowRight } from 'lucide-svelte'
 	import CalendarIcon from 'lucide-svelte/icons/calendar'
@@ -28,14 +27,6 @@
 		selectedStations = response[1].sort((a: string, b: string) => a.localeCompare(b))
 
 		console.log('selectedStationIds:', selectedStationIds)
-
-		// selectedStations = selectedStationIds.map((name, index) => {
-		// 	return {
-		// 		id: index.toString(),
-		// 		name: name
-		// 	}
-		// })
-		// selectedStations.sort((a, b) => a.name.localeCompare(b.name))
 	})
 
 	//👉 - alert 여는 함수
@@ -47,6 +38,8 @@
 	}
 
 	//👉 - 검색버튼 클릭 이벤트
+	let searchedTrains: any = $state([])
+  let selectedTrain: any = $state([])
 	async function trainSearch() {
 		if (startStation === '' || arrivalStation === '') {
 			openAlertDialog('출발역과 도착역을 선택해주세요.')
@@ -74,7 +67,7 @@
 		console.log(timeValue)
 		console.log(personValue)
 
-		const year = pickedDate.year.toString().slice(-2) // 연도의 마지막 두 자리
+		const year = pickedDate.year.toString() // 연도의 마지막 두 자리
 		const month = pickedDate.month.toString().padStart(2, '0') // 월
 		const day = pickedDate.day.toString().padStart(2, '0') // 일
 
@@ -86,9 +79,12 @@
 			adult: personValue
 		}
 
+		// console.log(data)
+
 		try {
 			// @ts-ignore (eel 타입 무시)
-			const response = await window.eel.search_train('SRT', data)()
+			const response = await window.eel.get_train_list('SRT', data)()
+			searchedTrains = response
 			console.log('reserve:', response)
 			return response
 		} catch (error) {
@@ -157,6 +153,18 @@
 	const personTriggerContent = $derived(
 		personCounts.find((f) => f.value === personValue)?.label ?? '인원'
 	)
+
+  //👉 - 기차 선택 기능
+  function handleRowClick(train:string) {
+    const value = train;
+    if (!selectedTrain.includes(value)) {
+      selectedTrain.push(value);
+    } else {
+      // 선택 해제 기능도 추가 (선택 시 토글)
+      selectedTrain = selectedTrain.filter(v => v !== value);
+    }
+    console.log("Selected:", selectedTrain);
+  }
 </script>
 
 <Card.Root>
@@ -165,7 +173,7 @@
 	</Card.Header>
 	<Card.Content class="flex flex-wrap items-center justify-center ">
 		<!-- 👉 - 출발역 선택 Select 박스 -->
-		<Select.Root type="single" name="startStation" bind:value={startStation}>
+		<Select.Root name="startStation" type="single" bind:value={startStation}>
 			<!-- 👉 - selectbox 트리거 ( 값 바꾸면 텍스트 변경 )-->
 			<Select.Trigger class="w-[120px]">
 				{startTriggerContent}
@@ -184,14 +192,14 @@
 		<ArrowRight size={32} color="#4f4f4f" class="justify-center align-middle" />
 
 		<!-- 👉 - 도착역 선택 Select 박스 -->
-		<Select.Root type="single" name="arrivalStation" bind:value={arrivalStation}>
+		<Select.Root name="arrivalStation" type="single" bind:value={arrivalStation}>
 			<!-- 👉 - selectbox 트리거 ( 값 바꾸면 텍스트 변경 )-->
 			<Select.Trigger class="mr-3 w-[120px]">
 				{arrivalTriggerContent}
 			</Select.Trigger>
 			<Select.Content>
 				<Select.Group>
-					<Select.GroupHeading>도착역</Select.GroupHeading>
+					<!-- <Select.GroupHeading>도착역</Select.GroupHeading> -->
 					{#each selectedStations as station}
 						<Select.Item value={station} label={station}>{station}</Select.Item>
 					{/each}
@@ -225,7 +233,7 @@
 		</Popover.Root>
 
 		<!-- 👉 - 출발시각 선택하는 Select -->
-		<Select.Root type="single" name="startTime" bind:value={timeValue}>
+		<Select.Root name="startTime" type="single" bind:value={timeValue}>
 			<Select.Trigger class="mr-3 w-[80px]">
 				{tiemTriggerContent}
 			</Select.Trigger>
@@ -237,7 +245,7 @@
 		</Select.Root>
 
 		<!-- 👉 - 사람 수 선택하는 Select -->
-		<Select.Root type="single" name="personCount" bind:value={personValue}>
+		<Select.Root name="personCount" type="single" bind:value={personValue}>
 			<Select.Trigger class="w-[80px]">
 				{personTriggerContent}
 			</Select.Trigger>
@@ -259,7 +267,44 @@
 
 <Card.Root>
 	<Card.Content>
-		<p>Card Content</p>
+		<p>선택된 기차 : {selectedTrain}</p>
+		<Table.Root>
+			<Table.Caption>예약하려는 기차를 선택하세요</Table.Caption>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head class="text-center">기차명</Table.Head>
+					<Table.Head class="text-center">날짜</Table.Head>
+					<Table.Head class="text-center">출발역</Table.Head>
+					<Table.Head class="text-center">도착역</Table.Head>
+					<Table.Head class="text-center">출발시간</Table.Head>
+					<Table.Head class="text-center">도착시간</Table.Head>
+					<Table.Head class="text-center">특실</Table.Head>
+					<Table.Head class="text-center">일반실</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each searchedTrains as train}
+					<Table.Row
+						data-value={train[1]}
+						onclick={() => handleRowClick(train[1])}
+						class="cursor-pointer hover:bg-gray-100 {selectedTrain.includes(train[1]) ? 'bg-purple-100' : ''}"
+					>
+						<Table.Cell class="text-center">{train[0].match(/\[(.*?)\]/)?.[1]}</Table.Cell>
+						<Table.Cell class="text-center">{train[0].split('] ')[1]?.substring(0, 7)}</Table.Cell>
+						<Table.Cell class="text-center">{train[0].split(', ')[1]?.split('~')[0]}</Table.Cell>
+						<Table.Cell class="text-center">{train[0].split('~')[1]?.split('(')[0]}</Table.Cell>
+						<Table.Cell class="text-center"
+							>{train[0].match(/\((.*?)\)/)?.[1].split('~')[0]}</Table.Cell
+						>
+						<Table.Cell class="text-center"
+							>{train[0].match(/\((.*?)\)/)?.[1].split('~')[1]}</Table.Cell
+						>
+						<Table.Cell class="text-center">{train[0].match(/특실 (.*?),/)?.[1]}</Table.Cell>
+						<Table.Cell class="text-center">{train[0].split('일반실 ')[1]}</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
 	</Card.Content>
 </Card.Root>
 
