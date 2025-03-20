@@ -5,8 +5,8 @@ from requests.exceptions import ConnectionError
 from termcolor import colored
 from typing import Awaitable, Callable, List, Optional, Tuple, Union, TypedDict
 
+import traceback
 import asyncio
-import click
 import inquirer
 import keyring
 import telegram
@@ -37,7 +37,10 @@ from .srt import (
     Disability4To6,
 )
 
-searched_train = ""
+SEARCHED_TRAIN = ""
+RESERVE_PASSENGERS = []
+RESERVE_OPTIONS = {}
+
 STATIONS = {
     "SRT": [
         "수서",
@@ -128,6 +131,12 @@ class SetStation(TypedDict):
     id: int
     name: str
     selected: bool
+
+
+class ResponseType(TypedDict):
+    msg: str
+    data: str
+    returnCode: str
 
 
 # @click.command()
@@ -838,7 +847,185 @@ def reserve(rail_type="SRT", debug=False):
             rail = login(rail_type, debug=debug)
 
 
-# def get_train_list(rail_type="SRT", debug=False):
+def get_train_list(rail_type="SRT", data=None):
+    rail = login(rail_type)
+    is_srt = rail_type == "SRT"
+
+    response = ResponseType(msg="default", data="default", returnCode="NG")
+
+    passenger_classes = {
+        "adult": Adult if is_srt else AdultPassenger,
+        "child": Child if is_srt else ChildPassenger,
+        "senior": Senior if is_srt else SeniorPassenger,
+        "disability1to3": Disability1To3 if is_srt else Disability1To3Passenger,
+        "disability4to6": Disability4To6 if is_srt else Disability4To6Passenger,
+    }
+
+    options = get_options()
+
+    global RESERVE_PASSENGERS, RESERVE_OPTIONS
+    RESERVE_PASSENGERS = [passenger_classes["adult"](int(data["adult"]))]
+    RESERVE_OPTIONS = options
+
+    # Search for trains
+    params = {
+        "dep": data["departure"],
+        "arr": data["arrival"],
+        "date": data["date"],
+        "time": data["time"],
+        "passengers": RESERVE_PASSENGERS,
+        **(
+            {"available_only": False}
+            if is_srt
+            else {
+                "include_no_seats": True,
+                **({"train_type": TrainType.KTX} if "ktx" in options else {}),
+            }
+        ),
+    }
+
+    trains = rail.search_train(**params)
+
+    # 👉 - 예약 가능한 열차가 없는 경우
+    # NOTE - flow상으로는 검색 가능한 열차가 없는 경우 Error 발생하기 때문에 아래 코드는 무의미함
+    if not trains:
+        response["msg"] = "예약 가능한 열차가 없습니다"
+        response["returnCode"] = "NG"
+        return response
+
+    global SEARCHED_TRAIN
+    SEARCHED_TRAIN = trains
+    # trains_msg = [trains[i].__repr__() for i in range(len(trains))]
+    trains_msg = [(train.__repr__(), i) for i, train in enumerate(trains)]
+    print("👌 전역변수에 기차 데이터 추가 : \n", SEARCHED_TRAIN)
+
+    response["msg"] = "열차 검색 성공"
+    response["data"] = trains_msg
+    response["returnCode"] = "OK"
+
+    return response
+
+
+def reserve(rail_type="SRT", choice=None):
+    rail = login(rail_type)
+
+    debug = False
+
+    is_srt = rail_type == "SRT"
+    seat_type = SeatType if is_srt else ReserveOption
+
+    # Reserve function
+    def _reserve(train):
+        # ❗ - 현재는 따로 예약 옵션 받지 않음 (일반실만 가능)
+        reserve = rail.reserve(
+            train, passengers=RESERVE_PASSENGERS, option=seat_type.GENERAL_ONLY
+        )
+        msg = (
+            (f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets))
+            if is_srt
+            else str(reserve).strip()
+        )
+
+        print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
+
+        # 👉 - 현재 카드 결제 옵션 활성화안함
+        # if RESERVE_OPTIONS["pay"] and not reserve.is_waiting and pay_card(rail, reserve):
+        #     print(
+        #         colored("\n\n💳 ✨ 결제 성공!!! ✨ 💳\n\n", "green", "on_red"), end=""
+        #     )
+        #     msg += "\n결제 완료"
+
+        # tgprintf = get_telegram()
+        # asyncio.run(tgprintf(msg))
+
+    # Reservation loop
+    i_try = 0
+    start_time = time.time()
+    while True:
+        try:
+            i_try += 1
+            elapsed_time = time.time() - start_time
+            hours, remainder = divmod(int(elapsed_time), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(
+                f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
+                end="",
+                flush=True,
+            )
+
+            trains = SEARCHED_TRAIN
+            for i in choice["trains"]:
+                # ❗ - 현재는 따로 예약 옵션 받지 않음
+                # if _is_seat_available(trains[i], RESERVE_OPTIONS["type"], rail_type):
+                #     _reserve(trains[i])
+                #     return
+                # 👉 - 일반실만 예약가능
+                if _is_seat_available(trains[i], seat_type.GENERAL_ONLY, rail_type):
+                    _reserve(trains[i])
+                    return
+            _sleep()
+
+        except SRTError as ex:
+            msg = ex.msg
+            if "정상적인 경로로 접근 부탁드립니다" in msg:
+                if debug:
+                    print(
+                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                    )
+                rail.clear()
+            elif "로그인 후 사용하십시오" in msg:
+                if debug:
+                    print(
+                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                    )
+                rail = login(rail_type, debug=debug)
+                if not rail.is_login and not _handle_error(ex):
+                    return
+            elif not any(
+                err in msg
+                for err in (
+                    "잔여석없음",
+                    "사용자가 많아 접속이 원활하지 않습니다",
+                    "예약대기 접수가 마감되었습니다",
+                    "예약대기자한도수초과",
+                )
+            ):
+                if not _handle_error(ex):
+                    return
+            _sleep()
+
+        except KorailError as ex:
+            if not any(
+                msg in str(ex)
+                for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")
+            ):
+                if not _handle_error(ex):
+                    return
+            _sleep()
+
+        except JSONDecodeError as ex:
+            if debug:
+                print(
+                    f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
+                )
+            _sleep()
+            rail = login(rail_type, debug=debug)
+
+        except ConnectionError as ex:
+            if not _handle_error(ex, "연결이 끊겼습니다"):
+                return
+            rail = login(rail_type, debug=debug)
+
+        except Exception as ex:
+            if debug:
+                print("\nUndefined exception")
+            if not _handle_error(ex):
+                return
+
+            rail = login(rail_type, debug=True)
+
+
+# def reserve(rail_type="SRT", debug=False):
 #     rail = login(rail_type, debug=debug)
 #     is_srt = rail_type == "SRT"
 
@@ -1165,46 +1352,8 @@ def reserve(rail_type="SRT", debug=False):
 #             rail = login(rail_type, debug=debug)
 
 
-def get_train_list(rail_type="SRT", data=None):
-    rail = login(rail_type)
-    is_srt = rail_type == "SRT"
-
-    passenger_classes = {
-        "adult": Adult if is_srt else AdultPassenger,
-        "child": Child if is_srt else ChildPassenger,
-        "senior": Senior if is_srt else SeniorPassenger,
-        "disability1to3": Disability1To3 if is_srt else Disability1To3Passenger,
-        "disability4to6": Disability4To6 if is_srt else Disability4To6Passenger,
-    }
-
-    options = get_options()
-
-    # Search for trains
-    params = {
-        "dep": data["departure"],
-        "arr": data["arrival"],
-        "date": data["date"],
-        "time": data["time"],
-        "passengers": [passenger_classes["adult"](int(data["adult"]))],
-        **(
-            {"available_only": False}
-            if is_srt
-            else {
-                "include_no_seats": True,
-                **({"train_type": TrainType.KTX} if "ktx" in options else {}),
-            }
-        ),
-    }
-
-    trains = rail.search_train(**params)
-    searched_train = trains
-    # trains_msg = [trains[i].__repr__() for i in range(len(trains))]
-    trains_msg = [(train.__repr__(), i) for i, train in enumerate(trains)]
-    print(searched_train)
-    return trains_msg
-
-
 def _sleep():
+    global RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE, RESERVE_INTERVAL_MIN
     time.sleep(
         gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE)
         + RESERVE_INTERVAL_MIN

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from module.srtgo import get_login, set_login, check_login
 from module.srtgo import get_station, set_station
 
-from module.srtgo import get_train_list
+from module.srtgo import get_train_list, reserve
 import time
 import threading
 
@@ -22,6 +22,7 @@ eel.expose(check_login)
 eel.expose(get_station)
 eel.expose(set_station)
 eel.expose(get_train_list)
+eel.expose(reserve)
 
 
 # Python에서 JavaScript로 호출할 함수
@@ -82,10 +83,10 @@ def start_app():
             print("Development mode")
             # 개발 모드
             eel.init("dist")
+            time.sleep(2)  # JavaScript가 로드되고 함수가 expose될 시간을 줌
             eel.start("index.html", mode="default")
             # start 전에 JavaScript가 초기화될 시간을 주기 위해 잠시 대기
             # eel.start("index.html", block=False)
-            time.sleep(2)  # JavaScript가 로드되고 함수가 expose될 시간을 줌
 
         else:
             print("Production mode")

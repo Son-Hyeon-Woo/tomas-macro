@@ -3,6 +3,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte'
+	// import { update_status } from '$lib/eel-functions'
 
 	let status = {
 		current_step: 0,
@@ -10,23 +11,10 @@
 		is_completed: false
 	}
 
-	// JavaScript 함수를 전역 스코프에 먼저 정의
-	function update_status(newStatus) {
-		console.log('Status updated:', newStatus)
-		status = newStatus
-	}
-
-	onMount(() => {
-		// expose를 onMount에서 실행
-		if (eel) {
-			try {
-				window.eel.expose(update_status, 'update_status')
-				console.log('update_status exposed to Python')
-			} catch (error) {
-				console.error('Error exposing function:', error)
-			}
-		}
-	})
+	// onMount(() => {
+	// 	// expose를 onMount에서 실행
+	// 	window.update_status = update_status
+	// })
 
 	function startReservation() {
 		if (window.eel) {

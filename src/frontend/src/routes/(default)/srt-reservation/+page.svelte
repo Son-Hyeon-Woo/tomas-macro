@@ -32,14 +32,14 @@
 	//👉 - alert 여는 함수
 	let isAlertDialogOpen: boolean = $state(false)
 	let alertTitle: string = $state('')
-	function openAlertDialog(title: string) {
+	function openAlertDialog(title: any) {
 		isAlertDialogOpen = true
 		alertTitle = title
 	}
 
 	//👉 - 검색버튼 클릭 이벤트
 	let searchedTrains: any = $state([])
-  let selectedTrain: any = $state([])
+	let selectedTrain: any = $state([])
 	async function trainSearch() {
 		if (startStation === '' || arrivalStation === '') {
 			openAlertDialog('출발역과 도착역을 선택해주세요.')
@@ -61,12 +61,6 @@
 			return
 		}
 
-		console.log(startStation)
-		console.log(arrivalStation)
-		console.log(pickedDate.toString())
-		console.log(timeValue)
-		console.log(personValue)
-
 		const year = pickedDate.year.toString() // 연도의 마지막 두 자리
 		const month = pickedDate.month.toString().padStart(2, '0') // 월
 		const day = pickedDate.day.toString().padStart(2, '0') // 일
@@ -84,13 +78,56 @@
 		try {
 			// @ts-ignore (eel 타입 무시)
 			const response = await window.eel.get_train_list('SRT', data)()
-			searchedTrains = response
-			console.log('reserve:', response)
+
+			searchedTrains = response.data
+			console.log(response.msg)
+
 			return response
-		} catch (error) {
+		} catch (error: any) {
+			openAlertDialog(error.errorText)
+
 			console.error('Error:', error)
 		}
 	}
+
+	//👉 - 예매시작버튼 클릭이벤트
+	async function trainReservation() {
+		if (selectedTrain.length === 0) {
+			openAlertDialog('선택된 기차가 없습니다.')
+			return
+		}
+
+		const data = {
+			trains: selectedTrain
+		}
+
+		try {
+			// @ts-ignore (eel 타입 무시)
+			const response = await window.eel.reserve('SRT', data)()
+
+			console.log(response)
+
+			return response
+		} catch (error: any) {
+			// openAlertDialog(error.errorText)
+
+			console.error('Error:', error)
+		}
+	}
+
+	//👉 - 예매시작버튼 Enter 키 입력 이벤트
+	function handleKeyPress(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			trainReservation()
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('keydown', handleKeyPress)
+		return () => {
+			window.removeEventListener('keydown', handleKeyPress)
+		}
+	})
 
 	//👉 - 로컬에 저장된 즐겨찾는 역 가져오기
 	async function getStation() {
@@ -154,17 +191,16 @@
 		personCounts.find((f) => f.value === personValue)?.label ?? '인원'
 	)
 
-  //👉 - 기차 선택 기능
-  function handleRowClick(train:string) {
-    const value = train;
-    if (!selectedTrain.includes(value)) {
-      selectedTrain.push(value);
-    } else {
-      // 선택 해제 기능도 추가 (선택 시 토글)
-      selectedTrain = selectedTrain.filter(v => v !== value);
-    }
-    console.log("Selected:", selectedTrain);
-  }
+	//👉 - 기차 선택 기능
+	function handleRowClick(train: string) {
+		const value = train
+		if (!selectedTrain.includes(value)) {
+			selectedTrain.push(value)
+		} else {
+			// 선택 해제 기능도 추가 (선택 시 토글)
+			selectedTrain = selectedTrain.filter((v: string) => v !== value)
+		}
+	}
 </script>
 
 <Card.Root>
@@ -234,7 +270,7 @@
 
 		<!-- 👉 - 출발시각 선택하는 Select -->
 		<Select.Root name="startTime" type="single" bind:value={timeValue}>
-			<Select.Trigger class="mr-3 w-[80px]">
+			<Select.Trigger class="mr-1 w-[80px]">
 				{tiemTriggerContent}
 			</Select.Trigger>
 			<Select.Content class="min-w-[var(--bits-select-anchor-width)]">
@@ -243,7 +279,7 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
-
+		<span class="mr-3 text-sm font-semibold text-slate-700">시 이후 </span>
 		<!-- 👉 - 사람 수 선택하는 Select -->
 		<Select.Root name="personCount" type="single" bind:value={personValue}>
 			<Select.Trigger class="w-[80px]">
@@ -267,7 +303,16 @@
 
 <Card.Root>
 	<Card.Content>
-		<p>선택된 기차 : {selectedTrain}</p>
+		<div class="flex justify-end">
+			<!-- 👉 - 기차 예매 시작 버튼 -->
+			<Button
+				onclick={() => trainReservation()}
+				disabled={selectedTrain.length === 0}
+				class="bg-slate-600"
+			>
+				{selectedTrain.length}개 기차 예매 시작 또는 Enter
+			</Button>
+		</div>
 		<Table.Root>
 			<Table.Caption>예약하려는 기차를 선택하세요</Table.Caption>
 			<Table.Header>
@@ -287,7 +332,9 @@
 					<Table.Row
 						data-value={train[1]}
 						onclick={() => handleRowClick(train[1])}
-						class="cursor-pointer hover:bg-gray-100 {selectedTrain.includes(train[1]) ? 'bg-purple-100' : ''}"
+						class="cursor-pointer hover:bg-gray-100 {selectedTrain.includes(train[1])
+							? 'bg-purple-100'
+							: ''}"
 					>
 						<Table.Cell class="text-center">{train[0].match(/\[(.*?)\]/)?.[1]}</Table.Cell>
 						<Table.Cell class="text-center">{train[0].split('] ')[1]?.substring(0, 7)}</Table.Cell>

@@ -8,6 +8,13 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js'
 	import { Separator } from '$lib/components/ui/separator/index.js'
 
+	import { onMount } from 'svelte'
+	import { update_status } from '$lib/eel-functions'
+	onMount(() => {
+		// expose를 onMount에서 실행
+		window.update_status = update_status
+	})
+
 	let { children } = $props()
 
 	// 네비게이션 데이터 타입 정의
