@@ -112,10 +112,11 @@
 				<Toggle
 					aria-label="toggle"
 					value={station.id}
-					bind:pressed={station.selected}
+					:pressed="station.selected"
 					class="data-[state=on]:text-background w-[110px] px-4 font-bold text-neutral-700 data-[state=off]:bg-neutral-50 data-[state=on]:bg-neutral-700"
-					>{station['name']}</Toggle
 				>
+					{station['name']}
+				</Toggle>
 			{/each}
 		</div>
 	</Card.Content>

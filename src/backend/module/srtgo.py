@@ -1,3 +1,5 @@
+import eel
+
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from random import gammavariate
@@ -216,35 +218,7 @@ def set_station(rail_type: RailType, selected_stations: List[SetStation]) -> boo
     return True
 
 
-# def set_station(rail_type: RailType) -> bool:
-#     stations, default_station_key = get_station(rail_type)
-
-#     if not (
-#         station_info := inquirer.prompt(
-#             [
-#                 inquirer.Checkbox(
-#                     "stations",
-#                     message="역 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-#                     choices=stations,
-#                     default=default_station_key,
-#                 )
-#             ]
-#         )
-#     ):
-#         return False
-
-#     if not (selected := station_info["stations"]):
-#         print("선택된 역이 없습니다.")
-#         return False
-
-#     keyring.set_password(
-#         rail_type, "station", (selected_stations := ",".join(selected))
-#     )
-#     print(f"선택된 역: {selected_stations}")
-#     return True
-
-
-# ❗ - 수정 필요한 부분
+# ❗ - 수정 필요한 부분(역 직접 수정)
 def edit_station(rail_type: RailType) -> bool:
     stations, default_station_key = get_station(rail_type)
     station_info = inquirer.prompt(
@@ -451,34 +425,7 @@ def set_login(rail_type="SRT", id="", password=""):
         return False
 
 
-# def set_login(rail_type="SRT", debug=False):
-#     credentials = {
-#         "id": keyring.get_password(rail_type, "id") or "",
-#         "pass": keyring.get_password(rail_type, "pass") or ""
-#     }
-
-#     login_info = inquirer.prompt([
-#         inquirer.Text("id", message=f"{rail_type} 계정 아이디 (멤버십 번호, 이메일, 전화번호)", default=credentials["id"]),
-#         inquirer.Password("pass", message=f"{rail_type} 계정 패스워드", default=credentials["pass"])
-#     ])
-#     if not login_info:
-#         return False
-
-#     try:
-#         SRT(login_info["id"], login_info["pass"], verbose=debug) if rail_type == "SRT" else Korail(
-#             login_info["id"], login_info["pass"], verbose=debug)
-
-#         keyring.set_password(rail_type, "id", login_info["id"])
-#         keyring.set_password(rail_type, "pass", login_info["pass"])
-#         keyring.set_password(rail_type, "ok", "1")
-#         return True
-#     except SRTError as err:
-#         print(err)
-#         keyring.delete_password(rail_type, "ok")
-#         return False
-
-
-def check_login(rail_type="SRT", id="", password=""):
+def check_login(rail_type="SRT", id="", password="", login_type=""):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         temp = SRT(id, password) if rail_type == "SRT" else Korail(id, password)
@@ -488,6 +435,7 @@ def check_login(rail_type="SRT", id="", password=""):
             if temp.logined:
                 keyring.set_password(rail_type, "id", id)
                 keyring.set_password(rail_type, "pass", password)
+                keyring.set_password(rail_type, "last_login_type", login_type)
                 keyring.set_password(rail_type, "last_login_at", now)
                 keyring.set_password(rail_type, "ok", "1")
                 return {"status": "success", "msg": "로그인 성공"}
@@ -496,6 +444,7 @@ def check_login(rail_type="SRT", id="", password=""):
 
         keyring.set_password(rail_type, "id", id)
         keyring.set_password(rail_type, "pass", password)
+        keyring.set_password(rail_type, "last_login_type", login_type)
         keyring.set_password(rail_type, "last_login_at", now)
         keyring.set_password(rail_type, "ok", "1")
         return {"status": "success", "msg": "로그인 성공"}
@@ -518,333 +467,6 @@ def login(rail_type="SRT", debug=False):
 
     rail = SRT if rail_type == "SRT" else Korail
     return rail(user_id, password, verbose=debug)
-
-
-def reserve(rail_type="SRT", debug=False):
-    rail = login(rail_type, debug=debug)
-    is_srt = rail_type == "SRT"
-
-    # Get date, time, stations, and passenger info
-    now = datetime.now() + timedelta(minutes=10)
-    today = now.strftime("%Y%m%d")
-    this_time = now.strftime("%H%M%S")
-
-    defaults = {
-        "departure": keyring.get_password(rail_type, "departure")
-        or ("수서" if is_srt else "서울"),
-        "arrival": keyring.get_password(rail_type, "arrival") or "동대구",
-        "date": keyring.get_password(rail_type, "date") or today,
-        "time": keyring.get_password(rail_type, "time") or "120000",
-        "adult": int(keyring.get_password(rail_type, "adult") or 1),
-        "child": int(keyring.get_password(rail_type, "child") or 0),
-        "senior": int(keyring.get_password(rail_type, "senior") or 0),
-        "disability1to3": int(keyring.get_password(rail_type, "disability1to3") or 0),
-        "disability4to6": int(keyring.get_password(rail_type, "disability4to6") or 0),
-    }
-
-    # Set default stations if departure equals arrival
-    if defaults["departure"] == defaults["arrival"]:
-        defaults["arrival"] = (
-            "동대구" if defaults["departure"] in ("수서", "서울") else None
-        )
-        defaults["departure"] = (
-            defaults["departure"]
-            if defaults["arrival"]
-            else ("수서" if is_srt else "서울")
-        )
-
-    stations, station_key = get_station(rail_type)
-    options = get_options()
-
-    # Generate date and time choices
-    date_choices = [
-        (
-            (now + timedelta(days=i)).strftime("%Y/%m/%d %a"),
-            (now + timedelta(days=i)).strftime("%Y%m%d"),
-        )
-        for i in range(28)
-    ]
-    time_choices = [(f"{h:02d}", f"{h:02d}0000") for h in range(24)]
-
-    # Build inquirer questions
-    q_info = [
-        inquirer.List(
-            "departure",
-            message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-            choices=station_key,
-            default=defaults["departure"],
-        ),
-        inquirer.List(
-            "arrival",
-            message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-            choices=station_key,
-            default=defaults["arrival"],
-        ),
-        inquirer.List(
-            "date",
-            message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-            choices=date_choices,
-            default=defaults["date"],
-        ),
-        inquirer.List(
-            "time",
-            message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-            choices=time_choices,
-            default=defaults["time"],
-        ),
-        inquirer.List(
-            "adult",
-            message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-            choices=range(10),
-            default=defaults["adult"],
-        ),
-    ]
-
-    passenger_types = {
-        "child": "어린이",
-        "senior": "경로우대",
-        "disability1to3": "1~3급 장애인",
-        "disability4to6": "4~6급 장애인",
-    }
-
-    passenger_classes = {
-        "adult": Adult if is_srt else AdultPassenger,
-        "child": Child if is_srt else ChildPassenger,
-        "senior": Senior if is_srt else SeniorPassenger,
-        "disability1to3": Disability1To3 if is_srt else Disability1To3Passenger,
-        "disability4to6": Disability4To6 if is_srt else Disability4To6Passenger,
-    }
-
-    PASSENGER_TYPE = {
-        passenger_classes["adult"]: "어른/청소년",
-        passenger_classes["child"]: "어린이",
-        passenger_classes["senior"]: "경로우대",
-        passenger_classes["disability1to3"]: "1~3급 장애인",
-        passenger_classes["disability4to6"]: "4~6급 장애인",
-    }
-
-    # Add passenger type questions if enabled in options
-    for key, label in passenger_types.items():
-        if key in options:
-            q_info.append(
-                inquirer.List(
-                    key,
-                    message=f"{label} 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-                    choices=range(10),
-                    default=defaults[key],
-                )
-            )
-
-    info = inquirer.prompt(q_info)
-
-    # Validate input info
-    if not info:
-        print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
-        return
-
-    if info["departure"] == info["arrival"]:
-        print(colored("출발역과 도착역이 같습니다", "green", "on_red") + "\n")
-        return
-
-    # Save preferences
-    for key, value in info.items():
-        keyring.set_password(rail_type, key, str(value))
-
-    # Adjust time if needed
-    if info["date"] == today and int(info["time"]) < int(this_time):
-        info["time"] = this_time
-
-    # Build passenger list
-    passengers = []
-    total_count = 0
-    for key, cls in passenger_classes.items():
-        if key in info and info[key] > 0:
-            passengers.append(cls(info[key]))
-            total_count += info[key]
-
-    # Validate passenger count
-    if not passengers:
-        print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
-        return
-
-    if total_count >= 10:
-        print(colored("승객수는 10명을 초과할 수 없습니다", "green", "on_red") + "\n")
-        return
-
-    msg_passengers = [
-        f"{PASSENGER_TYPE[type(passenger)]} {passenger.count}명"
-        for passenger in passengers
-    ]
-    print(*msg_passengers)
-
-    # Search for trains
-    params = {
-        "dep": info["departure"],
-        "arr": info["arrival"],
-        "date": info["date"],
-        "time": info["time"],
-        "passengers": [passenger_classes["adult"](total_count)],
-        **(
-            {"available_only": False}
-            if is_srt
-            else {
-                "include_no_seats": True,
-                **({"train_type": TrainType.KTX} if "ktx" in options else {}),
-            }
-        ),
-    }
-
-    trains = rail.search_train(**params)
-
-    def train_decorator(train):
-        msg = train.__repr__()
-        return (
-            msg.replace("예약가능", colored("가능", "green"))
-            .replace("가능", colored("가능", "green"))
-            .replace("신청하기", colored("가능", "green"))
-        )
-
-    if not trains:
-        print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
-        return
-
-    # Get train selection
-    q_choice = [
-        inquirer.Checkbox(
-            "trains",
-            message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-            choices=[(train_decorator(train), i) for i, train in enumerate(trains)],
-            default=None,
-        ),
-    ]
-
-    choice = inquirer.prompt(q_choice)
-    if choice is None or not choice["trains"]:
-        print(colored("선택한 열차가 없습니다!", "green", "on_red") + "\n")
-        return
-
-    n_trains = len(choice["trains"])
-
-    # Get seat type preference
-    seat_type = SeatType if is_srt else ReserveOption
-    q_options = [
-        inquirer.List(
-            "type",
-            message="선택 유형",
-            choices=[
-                ("일반실 우선", seat_type.GENERAL_FIRST),
-                ("일반실만", seat_type.GENERAL_ONLY),
-                ("특실 우선", seat_type.SPECIAL_FIRST),
-                ("특실만", seat_type.SPECIAL_ONLY),
-            ],
-        ),
-        inquirer.Confirm("pay", message="예매 시 카드 결제", default=False),
-    ]
-
-    options = inquirer.prompt(q_options)
-    if options is None:
-        print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
-        return
-
-    # Reserve function
-    def _reserve(train):
-        reserve = rail.reserve(train, passengers=passengers, option=options["type"])
-        msg = (
-            (f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets))
-            if is_srt
-            else str(reserve).strip()
-        )
-
-        print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
-
-        if options["pay"] and not reserve.is_waiting and pay_card(rail, reserve):
-            print(
-                colored("\n\n💳 ✨ 결제 성공!!! ✨ 💳\n\n", "green", "on_red"), end=""
-            )
-            msg += "\n결제 완료"
-
-        tgprintf = get_telegram()
-        asyncio.run(tgprintf(msg))
-
-    # Reservation loop
-    i_try = 0
-    start_time = time.time()
-    while True:
-        try:
-            i_try += 1
-            elapsed_time = time.time() - start_time
-            hours, remainder = divmod(int(elapsed_time), 3600)
-            minutes, seconds = divmod(remainder, 60)
-            print(
-                f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
-                end="",
-                flush=True,
-            )
-
-            trains = rail.search_train(**params)
-            for i in choice["trains"]:
-                if _is_seat_available(trains[i], options["type"], rail_type):
-                    _reserve(trains[i])
-                    return
-            _sleep()
-
-        except SRTError as ex:
-            msg = ex.msg
-            if "정상적인 경로로 접근 부탁드립니다" in msg:
-                if debug:
-                    print(
-                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-                    )
-                rail.clear()
-            elif "로그인 후 사용하십시오" in msg:
-                if debug:
-                    print(
-                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-                    )
-                rail = login(rail_type, debug=debug)
-                if not rail.is_login and not _handle_error(ex):
-                    return
-            elif not any(
-                err in msg
-                for err in (
-                    "잔여석없음",
-                    "사용자가 많아 접속이 원활하지 않습니다",
-                    "예약대기 접수가 마감되었습니다",
-                    "예약대기자한도수초과",
-                )
-            ):
-                if not _handle_error(ex):
-                    return
-            _sleep()
-
-        except KorailError as ex:
-            if not any(
-                msg in str(ex)
-                for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")
-            ):
-                if not _handle_error(ex):
-                    return
-            _sleep()
-
-        except JSONDecodeError as ex:
-            if debug:
-                print(
-                    f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
-                )
-            _sleep()
-            rail = login(rail_type, debug=debug)
-
-        except ConnectionError as ex:
-            if not _handle_error(ex, "연결이 끊겼습니다"):
-                return
-            rail = login(rail_type, debug=debug)
-
-        except Exception as ex:
-            if debug:
-                print("\nUndefined exception")
-            if not _handle_error(ex):
-                return
-            rail = login(rail_type, debug=debug)
 
 
 def get_train_list(rail_type="SRT", data=None):
@@ -939,422 +561,103 @@ def reserve(rail_type="SRT", choice=None):
         # asyncio.run(tgprintf(msg))
 
     # Reservation loop
-    i_try = 0
-    start_time = time.time()
-    while True:
-        try:
-            i_try += 1
-            elapsed_time = time.time() - start_time
-            hours, remainder = divmod(int(elapsed_time), 3600)
-            minutes, seconds = divmod(remainder, 60)
-            print(
-                f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
-                end="",
-                flush=True,
-            )
-
-            trains = SEARCHED_TRAIN
-            for i in choice["trains"]:
-                # ❗ - 현재는 따로 예약 옵션 받지 않음
-                # if _is_seat_available(trains[i], RESERVE_OPTIONS["type"], rail_type):
-                #     _reserve(trains[i])
-                #     return
-                # 👉 - 일반실만 예약가능
-                if _is_seat_available(trains[i], seat_type.GENERAL_ONLY, rail_type):
-                    _reserve(trains[i])
-                    return
-            _sleep()
-
-        except SRTError as ex:
-            msg = ex.msg
-            if "정상적인 경로로 접근 부탁드립니다" in msg:
-                if debug:
-                    print(
-                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-                    )
-                rail.clear()
-            elif "로그인 후 사용하십시오" in msg:
-                if debug:
-                    print(
-                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-                    )
-                rail = login(rail_type, debug=debug)
-                if not rail.is_login and not _handle_error(ex):
-                    return
-            elif not any(
-                err in msg
-                for err in (
-                    "잔여석없음",
-                    "사용자가 많아 접속이 원활하지 않습니다",
-                    "예약대기 접수가 마감되었습니다",
-                    "예약대기자한도수초과",
-                )
-            ):
-                if not _handle_error(ex):
-                    return
-            _sleep()
-
-        except KorailError as ex:
-            if not any(
-                msg in str(ex)
-                for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")
-            ):
-                if not _handle_error(ex):
-                    return
-            _sleep()
-
-        except JSONDecodeError as ex:
-            if debug:
+    def reservation_loop():
+        i_try = 0
+        start_time = time.time()
+        while True:
+            try:
+                i_try += 1
+                elapsed_time = time.time() - start_time
+                hours, remainder = divmod(int(elapsed_time), 3600)
+                minutes, seconds = divmod(remainder, 60)
                 print(
-                    f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
+                    f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
+                    end="",
+                    flush=True,
                 )
-            _sleep()
-            rail = login(rail_type, debug=debug)
 
-        except ConnectionError as ex:
-            if not _handle_error(ex, "연결이 끊겼습니다"):
-                return
-            rail = login(rail_type, debug=debug)
+                trains = SEARCHED_TRAIN
+                for i in choice["trains"]:
+                    # ❗ - 현재는 따로 예약 옵션 받지 않음
+                    # if _is_seat_available(trains[i], RESERVE_OPTIONS["type"], rail_type):
+                    #     _reserve(trains[i])
+                    #     return
+                    # 👉 - 일반실만 예약가능
+                    if _is_seat_available(trains[i], seat_type.GENERAL_ONLY, rail_type):
+                        _reserve(trains[i])
+                        return
+                _sleep()
+                # eel.sleep(1.0)
 
-        except Exception as ex:
-            if debug:
-                print("\nUndefined exception")
-            if not _handle_error(ex):
-                return
+            except SRTError as ex:
+                msg = ex.msg
+                if "정상적인 경로로 접근 부탁드립니다" in msg:
+                    if debug:
+                        print(
+                            f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                        )
+                    rail.clear()
+                elif "로그인 후 사용하십시오" in msg:
+                    if debug:
+                        print(
+                            f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                        )
+                    rail = login(rail_type, debug=debug)
+                    if not rail.is_login and not _handle_error(ex):
+                        return
+                elif not any(
+                    err in msg
+                    for err in (
+                        "잔여석없음",
+                        "사용자가 많아 접속이 원활하지 않습니다",
+                        "예약대기 접수가 마감되었습니다",
+                        "예약대기자한도수초과",
+                    )
+                ):
+                    if not _handle_error(ex):
+                        return
+                _sleep()
+                # eel.sleep(1.0)
 
-            rail = login(rail_type, debug=True)
+            except KorailError as ex:
+                if not any(
+                    msg in str(ex)
+                    for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")
+                ):
+                    if not _handle_error(ex):
+                        return
+                _sleep()
+                # eel.sleep(1.0)
 
+            except JSONDecodeError as ex:
+                if debug:
+                    print(
+                        f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
+                    )
+                _sleep()
+                # eel.sleep(1.0)
 
-# def reserve(rail_type="SRT", debug=False):
-#     rail = login(rail_type, debug=debug)
-#     is_srt = rail_type == "SRT"
+                rail = login(rail_type, debug=debug)
 
-#     # Get date, time, stations, and passenger info
-#     now = datetime.now() + timedelta(minutes=10)
-#     today = now.strftime("%Y%m%d")
-#     this_time = now.strftime("%H%M%S")
+            except ConnectionError as ex:
+                if not _handle_error(ex, "연결이 끊겼습니다"):
+                    return
+                rail = login(rail_type, debug=debug)
 
-#     defaults = {
-#         "departure": keyring.get_password(rail_type, "departure")
-#         or ("수서" if is_srt else "서울"),
-#         "arrival": keyring.get_password(rail_type, "arrival") or "동대구",
-#         "date": keyring.get_password(rail_type, "date") or today,
-#         "time": keyring.get_password(rail_type, "time") or "120000",
-#         "adult": int(keyring.get_password(rail_type, "adult") or 1),
-#         "child": int(keyring.get_password(rail_type, "child") or 0),
-#         "senior": int(keyring.get_password(rail_type, "senior") or 0),
-#         "disability1to3": int(keyring.get_password(rail_type, "disability1to3") or 0),
-#         "disability4to6": int(keyring.get_password(rail_type, "disability4to6") or 0),
-#     }
+            except Exception as ex:
+                if debug:
+                    print("\nUndefined exception")
+                if not _handle_error(ex):
+                    return
 
-#     # Set default stations if departure equals arrival
-#     if defaults["departure"] == defaults["arrival"]:
-#         defaults["arrival"] = (
-#             "동대구" if defaults["departure"] in ("수서", "서울") else None
-#         )
-#         defaults["departure"] = (
-#             defaults["departure"]
-#             if defaults["arrival"]
-#             else ("수서" if is_srt else "서울")
-#         )
+                rail = login(rail_type, debug=True)
 
-#     stations, station_key = get_station(rail_type)
-#     options = get_options()
-
-#     # Generate date and time choices
-#     date_choices = [
-#         (
-#             (now + timedelta(days=i)).strftime("%Y/%m/%d %a"),
-#             (now + timedelta(days=i)).strftime("%Y%m%d"),
-#         )
-#         for i in range(28)
-#     ]
-#     time_choices = [(f"{h:02d}", f"{h:02d}0000") for h in range(24)]
-
-#     # Build inquirer questions
-#     q_info = [
-#         inquirer.List(
-#             "departure",
-#             message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#             choices=station_key,
-#             default=defaults["departure"],
-#         ),
-#         inquirer.List(
-#             "arrival",
-#             message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#             choices=station_key,
-#             default=defaults["arrival"],
-#         ),
-#         inquirer.List(
-#             "date",
-#             message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#             choices=date_choices,
-#             default=defaults["date"],
-#         ),
-#         inquirer.List(
-#             "time",
-#             message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#             choices=time_choices,
-#             default=defaults["time"],
-#         ),
-#         inquirer.List(
-#             "adult",
-#             message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#             choices=range(10),
-#             default=defaults["adult"],
-#         ),
-#     ]
-
-#     passenger_types = {
-#         "child": "어린이",
-#         "senior": "경로우대",
-#         "disability1to3": "1~3급 장애인",
-#         "disability4to6": "4~6급 장애인",
-#     }
-
-#     passenger_classes = {
-#         "adult": Adult if is_srt else AdultPassenger,
-#         "child": Child if is_srt else ChildPassenger,
-#         "senior": Senior if is_srt else SeniorPassenger,
-#         "disability1to3": Disability1To3 if is_srt else Disability1To3Passenger,
-#         "disability4to6": Disability4To6 if is_srt else Disability4To6Passenger,
-#     }
-
-#     PASSENGER_TYPE = {
-#         passenger_classes["adult"]: "어른/청소년",
-#         passenger_classes["child"]: "어린이",
-#         passenger_classes["senior"]: "경로우대",
-#         passenger_classes["disability1to3"]: "1~3급 장애인",
-#         passenger_classes["disability4to6"]: "4~6급 장애인",
-#     }
-
-#     # Add passenger type questions if enabled in options
-#     for key, label in passenger_types.items():
-#         if key in options:
-#             q_info.append(
-#                 inquirer.List(
-#                     key,
-#                     message=f"{label} 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-#                     choices=range(10),
-#                     default=defaults[key],
-#                 )
-#             )
-
-#     info = inquirer.prompt(q_info)
-
-#     # Validate input info
-#     if not info:
-#         print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
-#         return
-
-#     if info["departure"] == info["arrival"]:
-#         print(colored("출발역과 도착역이 같습니다", "green", "on_red") + "\n")
-#         return
-
-#     # Save preferences
-#     for key, value in info.items():
-#         keyring.set_password(rail_type, key, str(value))
-
-#     # Adjust time if needed
-#     if info["date"] == today and int(info["time"]) < int(this_time):
-#         info["time"] = this_time
-
-#     # Build passenger list
-#     passengers = []
-#     total_count = 0
-#     for key, cls in passenger_classes.items():
-#         if key in info and info[key] > 0:
-#             passengers.append(cls(info[key]))
-#             total_count += info[key]
-
-#     # Validate passenger count
-#     if not passengers:
-#         print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
-#         return
-
-#     if total_count >= 10:
-#         print(colored("승객수는 10명을 초과할 수 없습니다", "green", "on_red") + "\n")
-#         return
-
-#     msg_passengers = [
-#         f"{PASSENGER_TYPE[type(passenger)]} {passenger.count}명"
-#         for passenger in passengers
-#     ]
-#     print(*msg_passengers)
-
-#     # Search for trains
-#     params = {
-#         "dep": info["departure"],
-#         "arr": info["arrival"],
-#         "date": info["date"],
-#         "time": info["time"],
-#         "passengers": [passenger_classes["adult"](total_count)],
-#         **(
-#             {"available_only": False}
-#             if is_srt
-#             else {
-#                 "include_no_seats": True,
-#                 **({"train_type": TrainType.KTX} if "ktx" in options else {}),
-#             }
-#         ),
-#     }
-
-#     trains = rail.search_train(**params)
-
-#     def train_decorator(train):
-#         msg = train.__repr__()
-#         return (
-#             msg.replace("예약가능", colored("가능", "green"))
-#             .replace("가능", colored("가능", "green"))
-#             .replace("신청하기", colored("가능", "green"))
-#         )
-
-#     if not trains:
-#         print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
-#         return
-
-#     # Get train selection
-#     q_choice = [
-#         inquirer.Checkbox(
-#             "trains",
-#             message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-#             choices=[(train_decorator(train), i) for i, train in enumerate(trains)],
-#             default=None,
-#         ),
-#     ]
-
-#     choice = inquirer.prompt(q_choice)
-#     if choice is None or not choice["trains"]:
-#         print(colored("선택한 열차가 없습니다!", "green", "on_red") + "\n")
-#         return
-
-#     n_trains = len(choice["trains"])
-
-#     # Get seat type preference
-#     seat_type = SeatType if is_srt else ReserveOption
-#     q_options = [
-#         inquirer.List(
-#             "type",
-#             message="선택 유형",
-#             choices=[
-#                 ("일반실 우선", seat_type.GENERAL_FIRST),
-#                 ("일반실만", seat_type.GENERAL_ONLY),
-#                 ("특실 우선", seat_type.SPECIAL_FIRST),
-#                 ("특실만", seat_type.SPECIAL_ONLY),
-#             ],
-#         ),
-#         inquirer.Confirm("pay", message="예매 시 카드 결제", default=False),
-#     ]
-
-#     options = inquirer.prompt(q_options)
-#     if options is None:
-#         print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
-#         return
-
-#     # Reserve function
-#     def _reserve(train):
-#         reserve = rail.reserve(train, passengers=passengers, option=options["type"])
-#         msg = (
-#             (f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets))
-#             if is_srt
-#             else str(reserve).strip()
-#         )
-
-#         print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
-
-#         if options["pay"] and not reserve.is_waiting and pay_card(rail, reserve):
-#             print(
-#                 colored("\n\n💳 ✨ 결제 성공!!! ✨ 💳\n\n", "green", "on_red"), end=""
-#             )
-#             msg += "\n결제 완료"
-
-#         tgprintf = get_telegram()
-#         asyncio.run(tgprintf(msg))
-
-#     # Reservation loop
-#     i_try = 0
-#     start_time = time.time()
-#     while True:
-#         try:
-#             i_try += 1
-#             elapsed_time = time.time() - start_time
-#             hours, remainder = divmod(int(elapsed_time), 3600)
-#             minutes, seconds = divmod(remainder, 60)
-#             print(
-#                 f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
-#                 end="",
-#                 flush=True,
-#             )
-
-#             trains = rail.search_train(**params)
-#             for i in choice["trains"]:
-#                 if _is_seat_available(trains[i], options["type"], rail_type):
-#                     _reserve(trains[i])
-#                     return
-#             _sleep()
-
-#         except SRTError as ex:
-#             msg = ex.msg
-#             if "정상적인 경로로 접근 부탁드립니다" in msg:
-#                 if debug:
-#                     print(
-#                         f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-#                     )
-#                 rail.clear()
-#             elif "로그인 후 사용하십시오" in msg:
-#                 if debug:
-#                     print(
-#                         f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
-#                     )
-#                 rail = login(rail_type, debug=debug)
-#                 if not rail.is_login and not _handle_error(ex):
-#                     return
-#             elif not any(
-#                 err in msg
-#                 for err in (
-#                     "잔여석없음",
-#                     "사용자가 많아 접속이 원활하지 않습니다",
-#                     "예약대기 접수가 마감되었습니다",
-#                     "예약대기자한도수초과",
-#                 )
-#             ):
-#                 if not _handle_error(ex):
-#                     return
-#             _sleep()
-
-#         except KorailError as ex:
-#             if not any(
-#                 msg in str(ex)
-#                 for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")
-#             ):
-#                 if not _handle_error(ex):
-#                     return
-#             _sleep()
-
-#         except JSONDecodeError as ex:
-#             if debug:
-#                 print(
-#                     f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
-#                 )
-#             _sleep()
-#             rail = login(rail_type, debug=debug)
-
-#         except ConnectionError as ex:
-#             if not _handle_error(ex, "연결이 끊겼습니다"):
-#                 return
-#             rail = login(rail_type, debug=debug)
-
-#         except Exception as ex:
-#             if debug:
-#                 print("\nUndefined exception")
-#             if not _handle_error(ex):
-#                 return
-#             rail = login(rail_type, debug=debug)
+    eel.spawn(reservation_loop)
 
 
 def _sleep():
     global RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE, RESERVE_INTERVAL_MIN
-    time.sleep(
+    eel.sleep(
         gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE)
         + RESERVE_INTERVAL_MIN
     )

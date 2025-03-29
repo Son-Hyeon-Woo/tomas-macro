@@ -693,6 +693,7 @@ class SRT:
 
         self.is_login = True
         user_info = json.loads(r.text)["userMap"]
+        print(user_info)
         self.membership_number = user_info["MB_CRD_NO"]
         self.membership_name = user_info["CUST_NM"]
         self.phone_number = user_info["MBL_PHONE"]

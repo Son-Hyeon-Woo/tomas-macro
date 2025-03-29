@@ -310,7 +310,7 @@
 				disabled={selectedTrain.length === 0}
 				class="bg-slate-600"
 			>
-				{selectedTrain.length}개 기차 예매 시작 또는 Enter
+				{selectedTrain.length}개 기차 예매 시작
 			</Button>
 		</div>
 		<Table.Root>

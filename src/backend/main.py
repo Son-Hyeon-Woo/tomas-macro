@@ -1,5 +1,6 @@
 import eel
 import os
+from bottle import Bottle, static_file
 from dotenv import load_dotenv
 from module.srtgo import get_login, set_login, check_login
 from module.srtgo import get_station, set_station
@@ -8,14 +9,16 @@ from module.srtgo import get_train_list, reserve
 import time
 import threading
 
-# Eel 초기화 및 웹 파일 디렉토리 설정
-# Svelte 빌드 파일은 'web' 디렉토리에 있다고 가정
-# eel.init("web")
+app = Bottle()
+
+
+static_dir = os.path.join(os.getcwd(), "dist")
+
 
 # .env 파일 로드
 load_dotenv()
 
-# 👉 - 이전 로그인 정보 가져오는 함수
+# # 👉 - 이전 로그인 정보 가져오는 함수
 eel.expose(get_login)
 eel.expose(set_login)
 eel.expose(check_login)
@@ -25,74 +28,59 @@ eel.expose(get_train_list)
 eel.expose(reserve)
 
 
-# Python에서 JavaScript로 호출할 함수
 @eel.expose
-def say_hello_from_python(name):
-    return f"Hello {name} from Python!"
+def spawnTest():
 
+    print(eel)
 
-# JavaScript에서 호출될 Python 함수
-@eel.expose
-def get_system_info():
-    return {"os": os.name, "platform": os.sys.platform, "cwdss": os.getcwd()}
+    print("====================")
 
+    print(eel._exposed_functions)
+    print(eel._js_functions)
 
-# 👉 - for 비동기 처리
-def do_test():
-    print(dir(eel))
-    cnt = 0
-    while cnt < 5:
-        time.sleep(1)
-        cnt += 1
-        print("test", cnt)
-        eel.update_status(cnt)()
+    print("====================")
 
+    def do_loop():
+        count = 0
+        while True:
+            print(count, "회차: spawnTest")
+            # eel.sleep(1)
+            eel.updateStatus(count + "회차: spawnTest")
+            count += 1
+            eel.sleep(1)
 
-@eel.expose
-def start_reservation():
-    for i in range(5):
-        status = {
-            "current_step": i,
-            "message": f"예약 진행 중... 단계 {i+1}/5",
-            "is_completed": False,
-        }
-        # JavaScript 함수 호출 시 콜백으로 처리
-        eel.update_status(status, _callback=lambda: None)
-        eel.sleep(1)  # time.sleep 대신 eel.sleep 사용
-
-    final_status = {"current_step": 5, "message": "예약 완료!", "is_completed": True}
-    eel.update_status(final_status, _callback=lambda: None)
-
-
-@eel.expose
-def handle_request():
-    threading.Thread(target=do_test).start()
+    eel.spawn(do_loop)
 
 
 # 앱 시작
 def start_app():
-    # .env 파일 로드
-    dev_mode = os.getenv("DEV_MODE", "False").lower() == "true"
 
     try:
         # 환경변수 가져오기
-        dev_mode = os.getenv("DEV_MODE", "False").lower() == "true"
-        port = int(os.getenv("PORT", 8000))
 
-        if dev_mode:
-            print("Development mode")
-            # 개발 모드
-            eel.init("dist")
-            time.sleep(2)  # JavaScript가 로드되고 함수가 expose될 시간을 줌
-            eel.start("index.html", mode="default")
-            # start 전에 JavaScript가 초기화될 시간을 주기 위해 잠시 대기
-            # eel.start("index.html", block=False)
+        # 프로덕션 모드
+        eel.init("dist")
 
-        else:
-            print("Production mode")
-            # 프로덕션 모드
-            eel.init("dist")
-            eel.start("index.html")
+        # 정적 파일 제공 라우트
+        @app.route("/assets/<filepath:path>")
+        def serve_static(filepath):
+            return static_file(filepath, root="dist/assets")
+
+        # 모든 경로를 index.html로 리다이렉트하여 SPA 지원
+        @app.route("/<:re:.*>")
+        def catch_all():
+            return static_file("index.html", root="dist")
+
+        # Eel의 기본 라우트를 사용자 정의 Bottle 인스턴스에 등록
+        eel.register_eel_routes(app)
+
+        time.sleep(2)
+        eel.start(
+            "",
+            app=app,
+            size=(1000, 800),
+            mode="default",
+        )
 
     except EnvironmentError:
         print("Chrome browser not found. Starting in default browser mode.")
